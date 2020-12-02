@@ -1,0 +1,32 @@
+# Do some string and integer manipulation.
+s = "Hello world"
+i = 1
+while i < 9:
+  s = s + ":" + str(i)
+  i = i + 1
+println(s)
+
+# Setup build parameters.
+source_path = "src"
+build_path = "out"
+build_type = "Release"
+
+# Create the build folder.
+if __OS__ == "Windows":
+  mkdir "${build_path}"
+else:
+  mkdir -p "${build_path}"
+
+# Run CMake.
+cmake -DCMAKE_BUILD_TYPE=${build_type} -S "${source_path}" -B "${build_path}"
+
+# Perform the build.
+cmake --build "${build_path}"
+
+# Print the contents of a folder.
+println("Contents of build folder:")
+if __OS__ == "Windows":
+  dir ${build_path}
+else:
+  ls -lsa ${build_path}
+
