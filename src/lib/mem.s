@@ -71,6 +71,9 @@ mem_init:
 malloc:
     mov     r2, #mem_start      ; r2 = Memory start
 
+    mov     r10, r1
+    add     r10, #5             ; minimum block size required for splitting a block into two
+
     ; First fit: Find the first free block that is large enough.
 1$:
     ldw     r3, r2              ; r3 = candidate_size
@@ -82,8 +85,9 @@ malloc:
     cmp     r4, #0
     bne     2$                  ; kind != 0 (free)?
     cmp     r1, r3
-    blt     3$                  ; size < candidate_size?
     beq     4$                  ; size == candidate_size?
+    cmp     r10, r3
+    blt     3$                  ; size+5 < candidate_size?
 
     ; On to the next block.
 2$:
@@ -91,20 +95,69 @@ malloc:
     jmp     1$
 
     ; We found a block that's larger than the requested size.
+    ; We need to split the block into two.
 3$:
     mov     r5, r2
-    add     r5, r3              ; r5 = start of the next block
+    sub     r2, #5
+    add     r5, r1              ; r5 = start of the new free block
+    stw     r1, r2              ; new size
+    add     r2, #5
 
-    ; TODO(m): Implement me!
-    jmp     5$
+    sub     r3, r1
+    sub     r3, #5              ; Free size of next block
+    stw     r3, r5
+    add     r5, #4
+    stb     r4, r5              ; kind of next block = same as the old block
 
     ; We found a block that's exactly the requested size.
 4$:
-    ; TODO(m): Implement me!
-    jmp     5$
+    sub     r2, #1
+    mov     r1, #1
+    stb     r1, r2              ; new kind = 1 (allocated)
+    add     r2, #1
+    mov     r1, r2              ; Return the block start address
+    rts
 
     ; No more free memory.
 5$:
     mov     r1, #0
     rts
 
+
+; -------------------------------------------------------------------------------------------------
+; void free(void* ptr)
+; Free a chunk of memory.
+; -------------------------------------------------------------------------------------------------
+
+free:
+    cmp     r1, #0
+    beq     1$
+    mov     r2, r1
+    sub     r2, #5
+    mov     r3, r2
+    add     r3, #1
+    ldw     r4, r2      ; r4 = block size
+    ldb     r5, r3      ; r5 = kind
+    cmp     r5, #1
+    bne     1$          ; kind != 1 (allocated) ?
+
+    ; Check if next block is also free - if so, merge the two blocks.
+    mov     r6, r1
+    add     r6, r4
+    ldw     r7, r6      ; r7 = next block size
+    add     r6, #4
+    ldb     r8, r6      ; r8 = next block kind
+    cmp     r8, #1
+    bne     2$
+
+    ; Next block is free, so merge the two blocks.
+    add     r4, r7
+    add     r4, #5
+    stw     r4, r2      ; size = merged size
+
+    ; Next block is not free, so just mark the current block as free.
+2$:
+    mov     r5, #0
+    stb     r5, r3      ; kind = 0 (free)
+1$:
+    rts

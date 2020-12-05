@@ -25,6 +25,25 @@
     .include    lib/string.s
 
 main:
+    jsr     mem_init
+
+    ; Allocate three blocks.
+    mov     r1, 1000
+    jsr     malloc
+    mov     r128, r1
+    mov     r1, 200
+    jsr     malloc
+    mov     r129, r1
+    mov     r1, 92929
+    jsr     malloc
+    mov     r130, r1
+
+    ; Free a block and allocate again.
+    mov     r1, r129
+    jsr     free
+    mov     r1, #123
+    jsr     malloc
+
     run     #command
 
     jsr     print_test
