@@ -95,27 +95,28 @@ _OPCODES = {
         [0xc1, _REG, _IMM32],
     ]},
     "LDB": {"descrs": [
-        [0x02, _REG, _REG],
-        [0x42, _REG, _IMM8],
-        [0x82, _REG, _PCREL8],
-        [0xc2, _REG, _IMM32],
+        [0x02, _REG, _REG, _REG],
+        [0x42, _REG, _REG, _IMM8],
+        [0x82, _REG, _REG, _PCREL8],
+        [0xc2, _REG, _REG, _IMM32],
     ]},
     "LDW": {"descrs": [
-        [0x03, _REG, _REG],
-        [0x43, _REG, _IMM8],
-        [0x83, _REG, _PCREL8],
-        [0xc3, _REG, _IMM32],
+        [0x03, _REG, _REG, _REG],
+        [0x43, _REG, _REG, _IMM8],
+        [0x83, _REG, _REG, _PCREL8],
+        [0xc3, _REG, _REG, _IMM32],
     ]},
     "STB": {"descrs": [
-        [0x04, _REG, _REG],
-        [0x44, _REG, _IMM8],
-        [0x84, _REG, _IMM32],
+        [0x04, _REG, _REG, _REG],
+        [0x44, _REG, _REG, _IMM8],
+        [0x84, _REG, _REG, _PCREL8],
+        [0xc4, _REG, _REG, _IMM32],
     ]},
     "STW": {"descrs": [
-        [0x05, _REG, _REG],
-        [0x45, _REG, _IMM8],
-        [0x85, _REG, _PCREL8],
-        [0xc5, _REG, _IMM32],
+        [0x05, _REG, _REG, _REG],
+        [0x45, _REG, _REG, _IMM8],
+        [0x85, _REG, _REG, _PCREL8],
+        [0xc5, _REG, _REG, _IMM32],
     ]},
 
     # Unconditional Jump / Jump to Subroutine
@@ -464,13 +465,21 @@ def parse_assigned_label(line, line_no):
 
 def emit_utf8(c):
     if c < 0x00080:
-      return struct.pack("B", c)
+        return struct.pack("B", c)
     elif c < 0x00800:
-      return struct.pack("BB", 0b11000000 | (c >> 6), 0x80 | (c & 0x3f))
+        return struct.pack("BB", 0b11000000 | (c >> 6), 0x80 | (c & 0x3F))
     elif c < 0x10000:
-      return struct.pack("BBB", 0b11100000 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f))
+        return struct.pack(
+            "BBB", 0b11100000 | (c >> 12), 0x80 | ((c >> 6) & 0x3F), 0x80 | (c & 0x3F)
+        )
     else:
-      return struct.pack("BBBB", 0b11110000 | (c >> 18), 0x80 | ((c >> 12) & 0x3f), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f))
+        return struct.pack(
+            "BBBB",
+            0b11110000 | (c >> 18),
+            0x80 | ((c >> 12) & 0x3F),
+            0x80 | ((c >> 6) & 0x3F),
+            0x80 | (c & 0x3F),
+        )
 
 
 def compile_source(lines, verbosity_level, file_name):

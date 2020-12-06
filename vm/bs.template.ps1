@@ -53,6 +53,7 @@ class VM {
     # Convert the packed string to bytes and store it in the RAM,
     # starting at address $00000000.
     $prg_size = ($prg.Length * 2) / 3
+    Write-Debug ("prg_size={0}" -f $prg_size)
     for ($i = 0; $i -lt ($prg_size/2); $i++) {
       $c1 = [Byte]($prg.Chars($i*3))-40    # 6 bits (0-63)
       $c2 = [Byte]($prg.Chars($i*3+1))-40  # 5 bits (0-31)
@@ -61,7 +62,7 @@ class VM {
       $b2 = (($c2 -band 7) -shl 5) -bor $c3
       $this.ram[$i*2] = $b1
       $this.ram[$i*2+1] = $b2
-      #Write-Debug ("(c1,c2,c3)=({0},{1},{2}) -> ({3},{4})" -f $c1,$c2,$c3,$b1,$b2)
+      Write-Debug ("(c1,c2,c3)=({0},{1},{2}) -> ({3},{4})" -f $c1,$c2,$c3,$b1,$b2)
     }
   }
 
@@ -157,99 +158,103 @@ class VM {
       $arg_type = $op -shr 6
       $operation = $op -band 63
 
-      Write-Debug ("PC={0,1:x8} CC={1} OP={2} OP*={3} AT={4}" -f $this.instrPC, $this.cc, $op, $operation, $arg_type)
+      Write-Debug ("PC={0} CC={1} OP={2} OP*={3} AT={4}" -f $this.instrPC, $this.cc, $op, $operation, $arg_type)
 
       switch ($operation) {
-        0x01 { # MOV
+        1 { # MOV
           [Int32]$op1 = $this.getUint8PC()
           [Int32]$op2 = $this.getOperandPC($arg_type)
           Write-Debug ("MOV R{0}, {1}" -f $op1, $op2)
           $this.reg[$op1] = $op2
         }
 
-        0x02 { # LDB
+        2 { # LDB
           [Int32]$op1 = $this.getUint8PC()
-          [Int32]$op2 = $this.getOperandPC($arg_type)
-          Write-Debug ("LDB R{0}, {1,1:x8}" -f $op1, $op2)
-          $this.reg[$op1] = [Int32]$this.getByte($op2)
+          [Int32]$op2 = $this.getRegPC()
+          [Int32]$op3 = $this.getOperandPC($arg_type)
+          Write-Debug ("LDB R{0}, {1}, {2}" -f $op1, $op2, $op3)
+          $this.reg[$op1] = [Int32]$this.getByte($op2+$op3)
         }
 
-        0x03 { # LDW
+        3 { # LDW
           [Int32]$op1 = $this.getUint8PC()
-          [Int32]$op2 = $this.getOperandPC($arg_type)
-          Write-Debug ("LDW R{0}, {1,1:x8}" -f $op1, $op2)
-          $this.reg[$op1] = $this.getInt32($op2)
+          [Int32]$op2 = $this.getRegPC()
+          [Int32]$op3 = $this.getOperandPC($arg_type)
+          Write-Debug ("LDW R{0}, {1}, {2}" -f $op1, $op2, $op3)
+          $this.reg[$op1] = $this.getInt32($op2+$op3)
         }
 
-        0x04 { # STB
-          [Int32]$op1 = $this.getUint8PC()
-          [Int32]$op2 = $this.getOperandPC($arg_type)
-          Write-Debug ("STB R{0}, {1,1:x8}" -f $op1, $op2)
-          $this.setByte($op2, [Byte]($this.reg[$op1] -band 255))
+        4 { # STB
+          [Int32]$op1 = $this.getRegPC()
+          [Int32]$op2 = $this.getRegPC()
+          [Int32]$op3 = $this.getOperandPC($arg_type)
+          Write-Debug ("STB {0}, {1}, {2}" -f $op1, $op2, $op3)
+          $this.setByte($op2+$op3, [Byte]($op1 -band 255))
         }
 
-        0x05 { # STW
-          [Int32]$op1 = $this.getUint8PC()
-          [Int32]$op2 = $this.getOperandPC($arg_type)
-          Write-Debug ("STW R{0}, {1,1:x8}" -f $op1, $op2)
-          $this.setInt32($op2, $this.reg[$op1])
+        5 { # STW
+          [Int32]$op1 = $this.getRegPC()
+          [Int32]$op2 = $this.getRegPC()
+          [Int32]$op3 = $this.getOperandPC($arg_type)
+          Write-Debug ("STW {0}, {1}, {2}" -f $op1, $op2, $op3)
+          $this.setInt32($op2+$op3, $op1)
         }
 
-        0x06 { # JMP
+        6 { # JMP
           [Int32]$op1 = $this.getOperandPC($arg_type)
-          Write-Debug ("JMP {0,1:x8}" -f $op1)
+          Write-Debug ("JMP {0}" -f $op1)
           $this.pc = $op1
         }
 
-        0x07 { # JSR
+        7 { # JSR
           [Int32]$op1 = $this.getOperandPC($arg_type)
-          Write-Debug ("JSR {0,1:x8}" -f $op1)
+          Write-Debug ("JSR {0}" -f $op1)
           $this.pushInt32($this.pc)
           $this.pc = $op1
         }
 
-        0x08 { # RTS
+        8 { # RTS
           Write-Debug ("RTS")
           $this.pc = $this.popInt32()
         }
 
-        0x09 { # BEQ
+        9 { # BEQ
           [Int32]$op1 = $this.getOperandPC($arg_type)
-          Write-Debug ("BEQ {0,1:x8}" -f $op1)
+          Write-Debug ("BEQ {0}" -f $op1)
           if (($this.cc -band $this._CC_EQ) -ne 0) { $this.pc = $op1 }
         }
 
-        0x0a { # BNE
+        10 { # BNE
           [Int32]$op1 = $this.getOperandPC($arg_type)
-          Write-Debug ("BNE {0,1:x8}" -f $op1)
+          Write-Debug ("BNE {0}" -f $op1)
           if (($this.cc -band $this._CC_EQ) -eq 0) { $this.pc = $op1 }
         }
 
-        0x0b { # BLT
+        11 { # BLT
           [Int32]$op1 = $this.getOperandPC($arg_type)
-          Write-Debug ("BLT {0,1:x8}" -f $op1)
+          Write-Debug ("BLT {0}" -f $op1)
           if (($this.cc -band $this._CC_LT) -ne 0) { $this.pc = $op1 }
         }
 
-        0x0c { # BLE
+        12 { # BLE
           [Int32]$op1 = $this.getOperandPC($arg_type)
-          Write-Debug ("BLE {0,1:x8}" -f $op1)
+          Write-Debug ("BLE {0}" -f $op1)
           if ((($this.cc -band $this._CC_LT) -ne 0) -or (($this.cc -band $this._CC_EQ) -ne 0)) { $this.pc = $op1 }
         }
 
-        0x0d { # BGT
+        13 { # BGT
           [Int32]$op1 = $this.getOperandPC($arg_type)
-          Write-Debug ("BGT {0,1:x8}" -f $op1)
+          Write-Debug ("BGT {0}" -f $op1)
           if (($this.cc -band $this._CC_GT) -ne 0) { $this.pc = $op1 }
         }
 
-        0x0e { # BGE
+        14 { # BGE
           [Int32]$op1 = $this.getOperandPC($arg_type)
-          Write-Debug ("BGE {0,1:x8}" -f $op1)
+          Write-Debug ("BGE {0}" -f $op1)
           if ((($this.cc -band $this._CC_GT) -ne 0) -or (($this.cc -band $this._CC_EQ) -ne 0)) { $this.pc = $op1 }
         }
 
-        0x0f { # CMP
+        15 { # CMP
           [Int32]$op1 = $this.getRegPC()
           [Int32]$op2 = $this.getOperandPC($arg_type)
           Write-Debug ("CMP {0}, {1}" -f $op1, $op2)
@@ -260,120 +265,120 @@ class VM {
           $this.cc = $new_cc
         }
 
-        0x10 { # PUSH
+        16 { # PUSH
           [Int32]$op1 = $this.getOperandPC($arg_type)
-          Write-Debug ("PUSH {0,1:x8}" -f $op1)
+          Write-Debug ("PUSH {0}" -f $op1)
           $this.pushInt32($op1)
         }
 
-        0x11 { # POP
+        17 { # POP
           [Int32]$op1 = $this.getUint8PC()
           Write-Debug ("POP R{0}" -f $op1)
           $this.reg[$op1] = $this.popInt32()
         }
 
-        0x12 { # ADD
+        18 { # ADD
           [Int32]$op1 = $this.getUint8PC()
           [Int32]$op2 = $this.getOperandPC($arg_type)
           Write-Debug ("ADD R{0}, {1}" -f $op1, $op2)
           $this.reg[$op1] += $op2
         }
 
-        0x13 { # SUB
+        19 { # SUB
           [Int32]$op1 = $this.getUint8PC()
           [Int32]$op2 = $this.getOperandPC($arg_type)
           Write-Debug ("SUB R{0}, {1}" -f $op1, $op2)
           $this.reg[$op1] -= $op2
         }
 
-        0x14 { # MUL
+        20 { # MUL
           [Int32]$op1 = $this.getUint8PC()
           [Int32]$op2 = $this.getOperandPC($arg_type)
           Write-Debug ("MUL R{0}, {1}" -f $op1, $op2)
           $this.reg[$op1] *= $op2
         }
 
-        0x15 { # DIV
+        21 { # DIV
           [Int32]$op1 = $this.getUint8PC()
           [Int32]$op2 = $this.getOperandPC($arg_type)
           Write-Debug ("DIV R{0}, {1}" -f $op1, $op2)
           $this.reg[$op1] /= $op2
         }
 
-        0x16 { # MOD
+        22 { # MOD
           [Int32]$op1 = $this.getUint8PC()
           [Int32]$op2 = $this.getOperandPC($arg_type)
           Write-Debug ("MOD R{0}, {1}" -f $op1, $op2)
           $this.reg[$op1] %= $op2
         }
 
-        0x17 { # AND
+        23 { # AND
           [Int32]$op1 = $this.getUint8PC()
           [Int32]$op2 = $this.getOperandPC($arg_type)
           Write-Debug ("AND R{0}, {1}" -f $op1, $op2)
           $this.reg[$op1] = $this.reg[$op1] -band $op2
         }
 
-        0x18 { # OR
+        24 { # OR
           [Int32]$op1 = $this.getUint8PC()
           [Int32]$op2 = $this.getOperandPC($arg_type)
           Write-Debug ("OR R{0}, {1}" -f $op1, $op2)
           $this.reg[$op1] = $this.reg[$op1] -bor $op2
         }
 
-        0x19 { # XOR
+        25 { # XOR
           [Int32]$op1 = $this.getUint8PC()
           [Int32]$op2 = $this.getOperandPC($arg_type)
           Write-Debug ("XOR R{0}, {1}" -f $op1, $op2)
           $this.reg[$op1] = $this.reg[$op1] -bxor $op2
         }
 
-        0x1a { # SHL
+        26 { # SHL
           [Int32]$op1 = $this.getUint8PC()
           [Int32]$op2 = $this.getOperandPC($arg_type)
           Write-Debug ("SHL R{0}, {1}" -f $op1, $op2)
           $this.reg[$op1] = $this.reg[$op1] -shl $op2
         }
 
-        0x1b { # SHR
+        27 { # SHR
           [Int32]$op1 = $this.getUint8PC()
           [Int32]$op2 = $this.getOperandPC($arg_type)
           Write-Debug ("SHR R{0}, {1}" -f $op1, $op2)
           $this.reg[$op1] = $this.reg[$op1] -shr $op2
         }
 
-        0x1c { # EXIT
+        28 { # EXIT
           [Int32]$op1 = $this.getOperandPC($arg_type)
           Write-Debug ("EXIT {0}" -f $op1)
           $exit_code = $op1
           $running = $false
         }
 
-        0x1d { # PRINTLN
+        29 { # PRINTLN
           [Int32]$op1 = $this.getOperandPC($arg_type)
           $str = $this.getString($op1)
-          Write-Debug ('PRINTLN {0,1:x8} ("{1}")' -f $op1,$str)
+          Write-Debug ('PRINTLN {0} ("{1}")' -f $op1,$str)
           Write-Host $str
         }
 
-        0x1e { # PRINT
+        30 { # PRINT
           [Int32]$op1 = $this.getOperandPC($arg_type)
           $str = $this.getString($op1)
-          Write-Debug ('PRINT {0,1:x8} ("{1}")' -f $op1,$str)
+          Write-Debug ('PRINT {0} ("{1}")' -f $op1,$str)
           Write-Host $str -NoNewline
         }
 
-        0x1f { # RUN
+        31 { # RUN
           [Int32]$op1 = $this.getOperandPC($arg_type)
           $str = $this.getString($op1)
-          Write-Debug ('RUN {0,1:x8} ("{1}")' -f $op1,$str)
+          Write-Debug ('RUN {0} ("{1}")' -f $op1,$str)
           $c = $str.Split(" ")[0]
           $a = $str.Substring($c.Length+1).TrimStart()
           Start-Process -Wait -FilePath $c -ArgumentList $a
         }
 
         default {
-          Write-Warning ("Unsupported op={0} @ pc={1,1:x8}" -f $op, $this.pc)
+          Write-Warning ("Unsupported op={0} @ pc={1}" -f $op, $this.pc)
           $running = $false
         }
       }

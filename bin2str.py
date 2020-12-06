@@ -23,12 +23,10 @@ import argparse
 
 
 _BIN2CHAR = "()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefg"
+_BIN2HEX = "0123456789ABCDEF"
 
 
-def convert(bin_data):
-    if len(bin_data) % 2 == 1:
-        bin_data += b"\0"
-
+def to3cp2b(bin_data):
     result = ""
     for i in range(len(bin_data) // 2):
         b1 = bin_data[2 * i]
@@ -37,15 +35,32 @@ def convert(bin_data):
         c2 = _BIN2CHAR[((b1 & 3) << 3) | (b2 >> 5)]
         c3 = _BIN2CHAR[(b2 & 31)]
         result += c1 + c2 + c3
-
     return result
+
+
+def tohex(bin_data):
+    result = ""
+    for i in range(len(bin_data)):
+        b = bin_data[i]
+        c1 = _BIN2HEX[b >> 4]
+        c2 = _BIN2HEX[b & 15]
+        result += c1 + c2
+    return result
+
+
+def convert(bin_data, use_hex):
+    if len(bin_data) % 2 == 1:
+        bin_data += b"\0"
+
+    if use_hex:
+        return tohex(bin_data)
+    else:
+        return to3cp2b(bin_data)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Convert binary file to a string")
-    parser.add_argument(
-        "--3b2c", action="store_true", help="use format: 3 bytes per 2 characters"
-    )
+    parser.add_argument("--hex", action="store_true", help="use hex format")
     parser.add_argument("infile", help="input file")
     parser.add_argument("outfile", help="output file")
     args = parser.parse_args()
@@ -53,7 +68,7 @@ def main():
     with open(args.infile, "rb") as f:
         in_data = f.read()
 
-    str_data = convert(in_data)
+    str_data = convert(in_data, use_hex=args.hex)
 
     with open(args.outfile, "w", encoding="utf8") as f:
         f.write(str_data)

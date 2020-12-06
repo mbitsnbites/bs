@@ -21,12 +21,16 @@
 ; -------------------------------------------------------------------------------------------------
 ; Memory allocator.
 ;
-; The memory allocater uses a singly linked list of mem_record:s:
+; The memory allocater uses a packed array of memory blocks. Each block looks like this:
 ;
-;   struct mem_record {
-;       int32_t size;
-;       uint8_t kind;   // 0 = free, 1 = allocated, 2 = end of list
-;   };
+;   +--------+------+-------+-------------------------------------------------+
+;   | Offset | Size | Type  | Description                                     |
+;   +--------+------+-------+-------------------------------------------------+
+;   | 0      | 4    | int32 | size (number of bytes)                          |
+;   | 4      | 1    | uint8 | kind (0 = free, 1 = allocated, 2 = end of list) |
+;   | 5      | size | -     | (user data)                                     |
+;   +--------+------+-------+-------------------------------------------------+
+;
 ; -------------------------------------------------------------------------------------------------
 
 ; The memory size must be matched by the VM implementation.
@@ -40,25 +44,24 @@ _STACK_SIZE = 4096
 ; -------------------------------------------------------------------------------------------------
 
 mem_init:
-    mov     r1, #mem_start      ; r1 = Memory start
+    mov     r1, #mem_start      ; r1 = Start of allocatable memory
     mov     r2, #_MEM_END
     sub     r2, r1              ; r2 = Memory size
 
     ; Create the first free block.
     mov     r3, r2              ; size = the whole memory...
     sub     r3, #10             ; ...minus the size of two blocks
-    stw     r3, r1              ; size
-    add     r1, #4
+    stw     r3, r1, #0          ; size
     mov     r4, #0
-    stb     r4, r1              ; kind = 0 (free)
+    stb     r4, r1, #4          ; kind = 0 (free)
 
     ; Create the last block.
+    add     r1, #5
     add     r1, r3
     mov     r4, #0
-    stw     r4, r1              ; size = 0
-    add     r1, #4
+    stw     r4, r1, #0          ; size = 0
     mov     r4, #2
-    stb     r4, r1              ; kind = 2 (end)
+    stb     r4, r1, #4          ; kind = 2 (end)
 
     rts
 
@@ -76,10 +79,8 @@ malloc:
 
     ; First fit: Find the first free block that is large enough.
 1$:
-    ldw     r3, r2              ; r3 = candidate_size
-    add     r2, #4
-    ldb     r4, r2              ; r4 = kind
-    add     r2, #1
+    ldw     r3, r2, #0          ; r3 = candidate_size
+    ldb     r4, r2, #4          ; r4 = kind
     cmp     r4, #2
     beq     5$                  ; kind == 2 (end)?
     cmp     r4, #0
@@ -91,6 +92,7 @@ malloc:
 
     ; On to the next block.
 2$:
+    add     r2, #5
     add     r2, r3              ; Skip ahead +candidate_size
     jmp     1$
 
@@ -98,24 +100,21 @@ malloc:
     ; We need to split the block into two.
 3$:
     mov     r5, r2
-    sub     r2, #5
+    add     r5, #5
     add     r5, r1              ; r5 = start of the new free block
-    stw     r1, r2              ; new size
-    add     r2, #5
+    stw     r1, r2, #0          ; new size
 
     sub     r3, r1
     sub     r3, #5              ; Free size of next block
-    stw     r3, r5
-    add     r5, #4
-    stb     r4, r5              ; kind of next block = same as the old block
+    stw     r3, r5, #0
+    stb     r4, r5, #4          ; kind of next block = same as the old block
 
     ; We found a block that's exactly the requested size.
 4$:
-    sub     r2, #1
     mov     r1, #1
-    stb     r1, r2              ; new kind = 1 (allocated)
-    add     r2, #1
-    mov     r1, r2              ; Return the block start address
+    stb     r1, r2, #4          ; new kind = 1 (allocated)
+    mov     r1, r2
+    add     r1, #5              ; Return the block start address
     rts
 
     ; No more free memory.
@@ -131,33 +130,29 @@ malloc:
 
 free:
     cmp     r1, #0
-    beq     1$
-    mov     r2, r1
-    sub     r2, #5
-    mov     r3, r2
-    add     r3, #1
-    ldw     r4, r2      ; r4 = block size
-    ldb     r5, r3      ; r5 = kind
+    beq     2$
+    ldw     r4, r1, #-5 ; r4 = block size
+    ldb     r5, r1, #-4 ; r5 = kind
     cmp     r5, #1
-    bne     1$          ; kind != 1 (allocated) ?
+    bne     2$          ; kind != 1 (allocated) ?
 
     ; Check if next block is also free - if so, merge the two blocks.
     mov     r6, r1
+    add     r6, #5
     add     r6, r4
-    ldw     r7, r6      ; r7 = next block size
-    add     r6, #4
-    ldb     r8, r6      ; r8 = next block kind
+    ldb     r8, r6, #4  ; r8 = next block kind
     cmp     r8, #1
-    bne     2$
+    bne     1$
 
     ; Next block is free, so merge the two blocks.
+    ldw     r7, r6, #0  ; r7 = next block size
     add     r4, r7
     add     r4, #5
-    stw     r4, r2      ; size = merged size
+    stw     r4, r1, #-5 ; size = merged size
 
     ; Next block is not free, so just mark the current block as free.
-2$:
-    mov     r5, #0
-    stb     r5, r3      ; kind = 0 (free)
 1$:
+    stb     z, r1, #-1  ; kind = 0 (free)
+
+2$:
     rts

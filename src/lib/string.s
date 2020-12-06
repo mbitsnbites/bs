@@ -28,36 +28,29 @@
 ; -------------------------------------------------------------------------------------------------
 
 memcpy:
+    mov     r8, #0
+
     mov     r6, r3
     shr     r6, #2      ; r6 = number of 32-bit words
     cmp     r6, #0
     beq     2$
-
-    mov     r7, r6
-    shl     r7, #2
-    sub     r3, r7      ; r3 = number of trailing bytes
-
-    mov     r5, r2
-    add     r5, r7      ; r5 = word end of src
+    shl     r6, #2
 1$:
-    ldw     r4, r2
-    stw     r4, r1
-    add     r2, #4
-    add     r1, #4
-    cmp     r2, r5
+    ldw     r4, r2, r8
+    stw     r4, r1, r8
+    add     r8, #4
+    cmp     r8, r6
     bne     1$
 
 2$:
     cmp     r3, #0
     beq     4$          ; Nothing to do?
 
-    add     r3, r2      ; r3 = end of src
 3$:
-    ldb     r4, r2
-    stb     r4, r1
-    add     r2, #1
-    add     r1, #1
-    cmp     r2, r3
+    ldb     r4, r2, r8
+    stb     r4, r1, r8
+    add     r8, #1
+    cmp     r8, r3
     bne     3$
 4$:
     rts
@@ -69,7 +62,7 @@ memcpy:
 ; -------------------------------------------------------------------------------------------------
 
 strcpy:
-    ldw     r3, r2
+    ldw     r3, r2, #0
     add     r3, #4              ; num_bytes = strlen + 4
     jmp     memcpy
 

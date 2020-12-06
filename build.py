@@ -84,7 +84,7 @@ def gen_bash(code, verbosity_level, debug):
 
         # Perform template substitutions.
         if line.startswith("prg="):
-            prg_str = bin2str.convert(code)
+            prg_str = bin2str.convert(code, use_hex=False)
             line = f"prg='{prg_str}'\n"
 
         # Perform simple minification (except for debug builds).
@@ -115,7 +115,7 @@ def gen_powershell(code, verbosity_level, debug):
 
         # Perform template substitutions.
         if line.startswith("$prg = "):
-            prg_str = bin2str.convert(code)
+            prg_str = bin2str.convert(code, use_hex=False)
             line = f"$prg = '{prg_str}'\n"
         elif line.startswith("$DebugPreference"):
             line = '$DebugPreference = "Continue"\n' if debug else ""
@@ -149,7 +149,7 @@ def gen_python(code, verbosity_level, debug):
 
         # Perform template substitutions.
         if line.startswith("prg="):
-            prg_str = bin2str.convert(code).replace('\\', '\\\\')
+            prg_str = bin2str.convert(code, use_hex=False).replace("\\", "\\\\")
             line = f"prg='{prg_str}'\n"
 
         # Perform simple minification (except for debug builds).
@@ -159,7 +159,11 @@ def gen_python(code, verbosity_level, debug):
                 line = remove_line_comment(line)
 
             # Remove debug code and empty lines.
-            if line.lstrip().startswith("WriteDebug") or line.strip() == "" or del_lext_line:
+            if (
+                line.lstrip().startswith("WriteDebug")
+                or line.strip() == ""
+                or del_lext_line
+            ):
                 line = ""
             if line.startswith("def WriteDebug"):
                 line = ""

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# -*- mode: powershell; tab-width: 2; indent-tabs-mode: nil; -*-
+# -*- mode: bash; tab-width: 2; indent-tabs-mode: nil; -*-
 # -------------------------------------------------------------------------------------------------
 # Copyright (c) 2020 Marcus Geelnard
 #
@@ -37,7 +37,7 @@ getString() {
   a=$((a+3))
   str=""
   for i in $(seq 1 $l); do
-    c=${ram[$((a+i))]}  # TODO(m): Handle UTF-8.
+    c=${ram[$((a+i))]}
     str+=$(printf "\x$(printf %x $c)")
   done
 }
@@ -56,7 +56,7 @@ _GT=4
 # OP:                     1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
 #     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 nout=(0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0)
-ninr=(0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
+ninr=(0 0 1 1 2 2 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
 ninx=(0 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1)
 
 # Create RAM.
@@ -83,7 +83,7 @@ for i in $(seq 0 $(((prg_size - 1)/2))); do
   b2=$((((c2 & 7) << 5) | c3))
   ram[$((i*2))]=$b1
   ram[$((i*2+1))]=$b2
-  #WriteDebug "(c1,c2,c3)=($c1,$c2,$c3) -> ($b1,$b2)"
+  WriteDebug "(c1,c2,c3)=($c1,$c2,$c3) -> ($b1,$b2)"
 done
 
 # Main execution loop.
@@ -110,16 +110,16 @@ while [ $running -eq 1 ]; do
     for i in $(seq 1 $n); do
       # Get register number (0-255)
       ops+=(${ram[$pc]})
+      pc=$((pc+1))
     done
-    pc=$((pc+n))
   fi
   n=${ninr[$operation]}
   if [ $n -ge 1 ]; then
     for i in $(seq 1 $n); do
       # Get register value
       ops+=(${reg[${ram[$pc]}]})
+      pc=$((pc+1))
     done
-    pc=$((pc+n))
   fi
   n=${ninx[$operation]}
   if [ $n -ge 1 ]; then
@@ -160,25 +160,25 @@ while [ $running -eq 1 ]; do
       ;;
 
     2) # LDB
-      WriteDebug "LDB R${ops[0]}, ${ops[1]}"
-      reg[${ops[0]}]=${ram[${ops[1]}]}
+      WriteDebug "LDB R${ops[0]}, ${ops[1]}, ${ops[2]}"
+      reg[${ops[0]}]=${ram[$((${ops[1]}+${ops[2]}))]}
       ;;
 
     3) # LDW
-      WriteDebug "LDW R${ops[0]}, ${ops[1]}"
-      a=${ops[1]}
+      WriteDebug "LDW R${ops[0]}, ${ops[1]}, ${ops[2]}"
+      a=$((${ops[1]}+${ops[2]}))
       b0=${ram[$a]}; b1=${ram[$((a+1))]}; b2=${ram[$((a+2))]}; b3=${ram[$((a+3))]}
       reg[${ops[0]}]=$((b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)))
       ;;
 
     4) # STB
-      WriteDebug "STB ${ops[0]}, ${ops[1]}"
-      ram[${ops[1]}]=$((${ops[0]} & 255))
+      WriteDebug "STB ${ops[0]}, ${ops[1]}, ${ops[2]}"
+      ram[$((${ops[1]}+${ops[2]}))]=$((${ops[0]} & 255))
       ;;
 
     5) # STW
-      WriteDebug "STW ${ops[0]}, ${ops[1]}"
-      a=${ops[1]}
+      WriteDebug "STW ${ops[0]}, ${ops[1]}, ${ops[2]}"
+      a=$((${ops[1]}+${ops[2]}))
       v=${ops[0]}
       ram[$a]=$((v & 255))
       ram[$((a+1))]=$(((v >> 8) & 255))

@@ -51,7 +51,7 @@ _GT=4
 # OP:                     1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
 #     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 nout=[0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0]
-ninr=[0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+ninr=[0,0,1,1,2,2,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 ninx=[0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
 
 # Create RAM.
@@ -133,21 +133,21 @@ while running:
     reg[ops[0]]=ops[1]
 
   elif operation == 2: # LDB
-    WriteDebug("LDB R{}, {}".format(ops[0],ops[1]))
-    reg[ops[0]]=ram[ops[1]]
+    WriteDebug("LDB R{}, {}, {}".format(ops[0],ops[1],ops[2]))
+    reg[ops[0]]=ram[ops[1]+ops[2]]
 
   elif operation == 3: # LDW
-    WriteDebug("LDW R{}, {}".format(ops[0],ops[1]))
-    a=ops[1]
+    WriteDebug("LDW R{}, {}, {}".format(ops[0],ops[1],ops[2]))
+    a=ops[1]+ops[2]
     reg[ops[0]]=ram[a] | (ram[a+1] << 8) | (ram[a+2] << 16) | (ram[a+3] << 24)
 
   elif operation == 4: # STB
-    WriteDebug("STB {}, {}".format(ops[0],ops[1]))
-    ram[ops[1]]=ops[0] & 255
+    WriteDebug("STB {}, {}, {}".format(ops[0],ops[1],ops[2]))
+    ram[ops[1]+ops[2]]=ops[0] & 255
 
   elif operation == 5: # STW
-    WriteDebug("STW {}, {}".format(ops[0],ops[1]))
-    a=ops[1]
+    WriteDebug("STW {}, {}, {}".format(ops[0],ops[1],ops[2]))
+    a=ops[1]+ops[2]
     v=ops[0]
     ram[a]=v & 255
     ram[a+1]=(v >> 8) & 255
