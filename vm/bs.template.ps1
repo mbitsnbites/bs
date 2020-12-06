@@ -131,15 +131,15 @@ class VM {
   }
 
   [void]pushInt32([Int32]$x) {
-    # R0 is SP
-    $this.reg[0] -= 4
-    $this.setInt32($this.reg[0], $x)
+    # R255 is SP
+    $this.reg[255] -= 4
+    $this.setInt32($this.reg[255], $x)
   }
 
   [Int32]popInt32() {
-    # R0 is SP
-    $x = $this.getInt32($this.reg[0])
-    $this.reg[0] += 4
+    # R255 is SP
+    $x = $this.getInt32($this.reg[255])
+    $this.reg[255] += 4
     return $x
   }
 

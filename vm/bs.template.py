@@ -160,8 +160,8 @@ while running:
 
   elif operation == 7: # JSR
     WriteDebug("JSR {}".format(ops[0]))
-    reg[0]-=4  # Pre-decrement SP
-    a=reg[0]
+    reg[255]-=4  # Pre-decrement SP
+    a=reg[255]
     ram[a]=pc & 255
     ram[a+1]=(pc >> 8) & 255
     ram[a+2]=(pc >> 16) & 255
@@ -170,9 +170,9 @@ while running:
 
   elif operation == 8: # RTS
     WriteDebug("RTS")
-    a=reg[0]
+    a=reg[255]
     pc=ram[a] | (ram[a+1] << 8) | (ram[a+2] << 16) | (ram[a+3] << 24)
-    reg[0]+=4  # Post-increment SP
+    reg[255]+=4  # Post-increment SP
 
   elif operation == 9: # BEQ
     WriteDebug("BEQ {}".format(ops[0]))
@@ -216,8 +216,8 @@ while running:
 
   elif operation == 16: # PUSH
     WriteDebug("PUSH {}".format(ops[0]))
-    reg[0]-=4  # Pre-decrement SP
-    a=reg[0]
+    reg[255]-=4  # Pre-decrement SP
+    a=reg[255]
     v=ops[0]
     ram[a]=v & 255
     ram[a+1]=(v >> 8) & 255
@@ -226,9 +226,9 @@ while running:
 
   elif operation == 17: # POP
     WriteDebug("POP R{}".format(ops[0]))
-    a=reg[0]
+    a=reg[255]
     reg[ops[0]]=ram[a] | (ram[a+1] << 8) | (ram[a+2] << 16) | (ram[a+3] << 24)
-    reg[0]+=4  # Post-increment SP
+    reg[255]+=4  # Post-increment SP
 
   elif operation == 18: # ADD
     WriteDebug("ADD R{}, {}".format(ops[0],ops[1]))

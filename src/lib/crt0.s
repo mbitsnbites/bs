@@ -23,7 +23,10 @@
 ; -------------------------------------------------------------------------------------------------
 
 entry:
-    ; Start by setting the stack pointer.
+    ; Ensure that Z is zero.
+    mov     z, #0
+
+    ; Set the stack pointer.
     ; TODO(m): We need some sort of memory allocation/reservation.
     mov     sp, #0x010000
 

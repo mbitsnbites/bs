@@ -55,9 +55,10 @@ import sys
 #   | Reg No.       |
 #   +---------------+
 #
-# There are 255 general purpose registers that can be addressed by instuctions, called R1-R255.
-# Additionally there is a stack pointer register, SP (alias for R0), that is implicitly modified by
-# stack manipulation instructions (PUSH, POP, JSR and RTS).
+# There are 254 general purpose registers that can be addressed by instuctions, called R1-R254.
+# By convention, R0 (a.k.a. Z) is always zero. Additionally there is a stack pointer register, SP
+# (alias for R255), that is implicitly modified by stack manipulation instructions (PUSH, POP,
+# JSR and RTS).
 #
 # The last operand of an instruction (if any) can have one of the following three operand types (as
 # given by the argument type field, A, of the first instruction byte):
@@ -286,8 +287,10 @@ def extract_parts(line):
 
 def translate_reg(operand, line_no):
     reg = operand.upper()
-    if reg == "SP":
+    if reg == "Z":
         reg = "R0"
+    elif reg == "SP":
+        reg = "R255"
     if len(reg) == 0 or reg[0] != "R":
         raise AsmError(line_no, "Bad register: {}".format(operand))
     try:
