@@ -105,52 +105,50 @@ while [ $running -eq 1 ]; do
 
   # Read the operands.
   ops=()
+  k=0
   n=${nout[$operation]}
-  if [ $n -ge 1 ]; then
-    for i in $(seq 1 $n); do
-      # Get register number (0-255)
-      ops+=(${ram[$pc]})
+  while [ $k -lt $n ]; do
+    # Get register number (0-255)
+    ops+=(${ram[$pc]})
+    pc=$((pc+1))
+    k=$((k+1))
+  done
+  n=$((k+${ninr[$operation]}))
+  while [ $k -lt $n ]; do
+    # Get register value
+    ops+=(${reg[${ram[$pc]}]})
+    pc=$((pc+1))
+    k=$((k+1))
+  done
+  n=$((k+${ninx[$operation]}))
+  while [ $k -lt $n ]; do
+    if [ $arg_type -eq 3 ]; then
+      # 32-bit immediate.
+      b0=${ram[$pc]}; b1=${ram[$((pc+1))]}; b2=${ram[$((pc+2))]}; b3=${ram[$((pc+3))]}
+      v=$((b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)))
+      pc=$((pc+4))
+    else
+      # Arg types 0-2 use a single byte.
+      v=${ram[$pc]}
       pc=$((pc+1))
-    done
-  fi
-  n=${ninr[$operation]}
-  if [ $n -ge 1 ]; then
-    for i in $(seq 1 $n); do
-      # Get register value
-      ops+=(${reg[${ram[$pc]}]})
-      pc=$((pc+1))
-    done
-  fi
-  n=${ninx[$operation]}
-  if [ $n -ge 1 ]; then
-    for i in $(seq 1 $n); do
-      if [ $arg_type -eq 3 ]; then
-        # 32-bit immediate.
-        b0=${ram[$pc]}; b1=${ram[$((pc+1))]}; b2=${ram[$((pc+2))]}; b3=${ram[$((pc+3))]}
-        v=$((b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)))
-        pc=$((pc+4))
+
+      if [ $arg_type -eq 0 ]; then
+        # Register value.
+        v=${reg[$v]}
       else
-        # Arg types 0-2 use a single byte.
-        v=${ram[$pc]}
-        pc=$((pc+1))
+        # Convert unsigned to signed byte (-128..127).
+        if [ $v -gt 127 ]; then v=$((v - 256)); fi
 
-        if [ $arg_type -eq 0 ]; then
-          # Register value.
-          v=${reg[$v]}
-        else
-          # Convert unsigned to signed byte (-128..127).
-          if [ $v -gt 127 ]; then v=$((v - 256)); fi
-
-          if [ $arg_type -eq 2 ]; then
-            # 8-bit PC-relative offset.
-            v=$((instrPC + v))
-          fi
-          # else v=$v (arg_type=1, 8-bit signed immedate)
+        if [ $arg_type -eq 2 ]; then
+          # 8-bit PC-relative offset.
+          v=$((instrPC + v))
         fi
+        # else v=$v (arg_type=1, 8-bit signed immedate)
       fi
-      ops+=($v)
-    done
-  fi
+    fi
+    ops+=($v)
+    k=$((k+1))
+  done
 
   # Execute the instruction.
   case $operation in
@@ -325,19 +323,19 @@ while [ $running -eq 1 ]; do
 
     29) # PRINTLN
       getString ${ops[0]}
-      WriteDebug "PRINTLN ${ops[0]} (\"$str\")"
+      WriteDebug "PRINTLN ${ops[0]} ($str)"
       printf "$str\n"
       ;;
 
     30) # PRINT
       getString ${ops[0]}
-      WriteDebug "PRINT ${ops[0]} (\"$str\")"
+      WriteDebug "PRINT ${ops[0]} ($str)"
       printf "$str"
       ;;
 
     31) # RUN
       getString ${ops[0]}
-      WriteDebug "RUN ${ops[0]} (\"$str\")"
+      WriteDebug "RUN ${ops[0]} ($str)"
       eval "$str"
       ;;
 

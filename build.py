@@ -29,26 +29,36 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).parent
 _OUT_DIR = _REPO_ROOT / "out"
+
 _MAIN_SOURCE = _REPO_ROOT / "src/bs_main.s"
-_BASH_TEMPLATE = _REPO_ROOT / "vm/bs.template.bash"
-_BASH_OUT = _OUT_DIR / "bs.bash"
-_PS_TEMPLATE = _REPO_ROOT / "vm/bs.template.ps1"
-_PS_OUT = _OUT_DIR / "bs.ps1"
-_PY_TEMPLATE = _REPO_ROOT / "vm/bs.template.py"
-_PY_OUT = _OUT_DIR / "bs.py"
+
+_BAT_FRONTEND_TEMPLATE = _REPO_ROOT / "vm/bs.template.bat"
+_BAT_FRONTEND_OUT = _OUT_DIR / "bs.bat"
+_SH_FRONTEND_TEMPLATE = _REPO_ROOT / "vm/bs.template"
+_SH_FRONTEND_OUT = _OUT_DIR / "bs"
+
+_BASHVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.bash"
+_BASHVM_OUT = _OUT_DIR / "bsvm.bash"
+_BATVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.bat"
+_BATVM_OUT = _OUT_DIR / "bsvm.bat"
+_PSVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.ps1"
+_PSVM_OUT = _OUT_DIR / "bsvm.ps1"
+_PYVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.py"
+_PYVM_OUT = _OUT_DIR / "bsvm.py"
 
 
 def read_file(name):
     lines = []
-    with open(name, "r", encoding="utf8") as f:
+    with open(name, "rb") as f:
         for line in f.readlines():
-            lines.append(line)
+            lines.append(line.decode("utf8").rstrip() + "\n")
     return lines
 
 
 def write_file(name, lines, make_executable=False):
-    with open(name, "w", encoding="utf8") as f:
-        f.writelines(lines)
+    with open(name, "wb") as f:
+        for line in lines:
+            f.write(line.encode("utf8"))
 
     if make_executable:
         st = os.stat(name)
@@ -66,19 +76,19 @@ def compile_file(src_name, verbosity_level):
     return code
 
 
-def remove_line_comment(line, start_char="#"):
-    # TODO(m): Add support for start_char in strings.
+def remove_line_comment(line, start_str="#"):
+    # TODO(m): Add support for start_str in strings.
     try:
-        return line[: line.index(start_char)].rstrip() + "\n"
+        return line[: line.index(start_str)].rstrip() + "\n"
     except ValueError:
         return line
 
 
 def gen_bash(code, verbosity_level, debug):
     if verbosity_level >= 1:
-        print(f"Generating {_BASH_OUT}")
+        print(f"Generating {_BASHVM_OUT}")
 
-    lines = read_file(_BASH_TEMPLATE)
+    lines = read_file(_BASHVM_TEMPLATE)
     for k in range(len(lines)):
         line = lines[k]
 
@@ -102,14 +112,60 @@ def gen_bash(code, verbosity_level, debug):
 
         lines[k] = line
 
-    write_file(_BASH_OUT, lines, make_executable=True)
+    write_file(_BASHVM_OUT, lines, make_executable=True)
+
+
+def gen_bat(code, verbosity_level, debug):
+    if verbosity_level >= 1:
+        print(f"Generating {_BATVM_OUT}")
+
+    lines = read_file(_BATVM_TEMPLATE)
+    num_keep_lines = 0
+    num_del_lines = 0
+    for k in range(len(lines)):
+        line = lines[k].rstrip() + "\n"
+
+        # Perform template substitutions.
+        if line.startswith("set prg="):
+            prg_str = bin2str.convert(code, use_hex=True)
+            line = f"set prg={prg_str}\n"
+        elif line.startswith("set /A prg_size="):
+            line = f"set /A prg_size={len(code)}\n"
+
+        # Perform simple minification (except for debug builds).
+        if not debug:
+            # We need to preserve a couple of lines after "set AX10=".
+            if line.startswith("set AX10="):
+                num_keep_lines = 3
+
+            # Remove indent.
+            if num_keep_lines < 1:
+                line = line.lstrip()
+
+            # Remove comments.
+            line = remove_line_comment(line, start_str="REM")
+
+            # Remove debug code and empty lines.
+            if line.startswith(":WriteDebug"):
+                num_del_lines = 3
+            if num_del_lines > 0 or (num_keep_lines < 1 and (line.lstrip().startswith("call :WriteDebug") or line.strip() == "")):
+                line = ""
+
+            if num_keep_lines > 0:
+                num_keep_lines -= 1
+            if num_del_lines > 0:
+                num_del_lines -= 1
+
+        lines[k] = line.replace("\n", "\r\n")
+
+    write_file(_BATVM_OUT, lines, make_executable=True)
 
 
 def gen_powershell(code, verbosity_level, debug):
     if verbosity_level >= 1:
-        print(f"Generating {_PS_OUT}")
+        print(f"Generating {_PSVM_OUT}")
 
-    lines = read_file(_PS_TEMPLATE)
+    lines = read_file(_PSVM_TEMPLATE)
     for k in range(len(lines)):
         line = lines[k]
 
@@ -135,14 +191,14 @@ def gen_powershell(code, verbosity_level, debug):
 
         lines[k] = line
 
-    write_file(_PS_OUT, lines, make_executable=True)
+    write_file(_PSVM_OUT, lines, make_executable=True)
 
 
 def gen_python(code, verbosity_level, debug):
     if verbosity_level >= 1:
-        print(f"Generating {_PY_OUT}")
+        print(f"Generating {_PYVM_OUT}")
 
-    lines = read_file(_PY_TEMPLATE)
+    lines = read_file(_PYVM_TEMPLATE)
     del_lext_line = False
     for k in range(len(lines)):
         line = lines[k]
@@ -173,7 +229,27 @@ def gen_python(code, verbosity_level, debug):
 
         lines[k] = line
 
-    write_file(_PY_OUT, lines, make_executable=True)
+    write_file(_PYVM_OUT, lines, make_executable=True)
+
+
+def gen_bat_frontend(verbosity_level):
+    if verbosity_level >= 1:
+        print(f"Generating {_BAT_FRONTEND_OUT}")
+
+    lines = read_file(_BAT_FRONTEND_TEMPLATE)
+    for k in range(len(lines)):
+        lines[k] = lines[k].rstrip() + "\r\n"
+    write_file(_BAT_FRONTEND_OUT, lines, make_executable=True)
+
+
+def gen_sh_frontend(verbosity_level):
+    if verbosity_level >= 1:
+        print(f"Generating {_SH_FRONTEND_OUT}")
+
+    lines = read_file(_SH_FRONTEND_TEMPLATE)
+    for k in range(len(lines)):
+        lines[k] = lines[k].rstrip() + "\n"
+    write_file(_SH_FRONTEND_OUT, lines, make_executable=True)
 
 
 def build(verbosity_level, debug):
@@ -183,14 +259,15 @@ def build(verbosity_level, debug):
         print(f"Compiling {src_name}")
     code = compile_file(src_name, verbosity_level)
 
-    # Generate the Bash interpreter.
+    # Generate the different interpreters.
     gen_bash(code, verbosity_level, debug)
-
-    # Generate the PowerShell interpreter.
+    gen_bat(code, verbosity_level, debug)
     gen_powershell(code, verbosity_level, debug)
-
-    # Generate the Python interpreter.
     gen_python(code, verbosity_level, debug)
+
+    # Generate the frontends.
+    gen_bat_frontend(verbosity_level)
+    gen_sh_frontend(verbosity_level)
 
 
 def main():

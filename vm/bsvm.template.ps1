@@ -357,21 +357,21 @@ class VM {
         29 { # PRINTLN
           [Int32]$op1 = $this.getOperandPC($arg_type)
           $str = $this.getString($op1)
-          Write-Debug ('PRINTLN {0} ("{1}")' -f $op1,$str)
+          Write-Debug ("PRINTLN {0} ({1})" -f $op1,$str)
           Write-Host $str
         }
 
         30 { # PRINT
           [Int32]$op1 = $this.getOperandPC($arg_type)
           $str = $this.getString($op1)
-          Write-Debug ('PRINT {0} ("{1}")' -f $op1,$str)
+          Write-Debug ("PRINT {0} ({1})" -f $op1,$str)
           Write-Host $str -NoNewline
         }
 
         31 { # RUN
           [Int32]$op1 = $this.getOperandPC($arg_type)
           $str = $this.getString($op1)
-          Write-Debug ('RUN {0} ("{1}")' -f $op1,$str)
+          Write-Debug ("RUN {0} ({1})" -f $op1,$str)
           $c = $str.Split(" ")[0]
           $a = $str.Substring($c.Length+1).TrimStart()
           Start-Process -Wait -FilePath $c -ArgumentList $a

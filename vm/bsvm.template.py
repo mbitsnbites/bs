@@ -277,19 +277,19 @@ while running:
 
   elif operation == 29: # PRINTLN
     s=getString(ops[0])
-    WriteDebug('PRINTLN {} ("{}")'.format(ops[0],s))
+    WriteDebug("PRINTLN {} ({})".format(ops[0],s))
     print(s)
     sys.stdout.flush()
 
   elif operation == 30: # PRINT
     s=getString(ops[0])
-    WriteDebug('PRINT {} ("{}")'.format(ops[0],s))
+    WriteDebug("PRINT {} ({})".format(ops[0],s))
     print(s,end="")
     sys.stdout.flush()
 
   elif operation == 31: # RUN
     s=getString(ops[0])
-    WriteDebug('run {} ("{}")'.format(ops[0],s))
+    WriteDebug("RUN {} ({})".format(ops[0],s))
     os.system(s)
 
   else:
