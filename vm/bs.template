@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# -*- mode: sh; tab-width: 2; indent-tabs-mode: nil; -*-
+# -*- mode: sh; tab-width: 4; indent-tabs-mode: nil; -*-
 # -------------------------------------------------------------------------------------------------
 # Copyright (c) 2020 Marcus Geelnard
 #
@@ -23,7 +23,27 @@
 d="$(dirname "$0")"
 [ "$(printf '%s' "$d" | cut -c1)" = "/" ] || d="$PWD/${d#./}"
 
-# Select the VM implementation to use (in order of preference).
+# First try using TinyCC to run the C version of the VM implementation.
+c="$(which tcc)" && "$c" -run "$d/bsvm.c" "$@" ; exit $?
+
+# Can we use another C compiler?
+# TODO(m): This may fail or require user interaction on macOS with Xcode command line tools (since
+# they may require the user to accept a license).
+if which mktemp >/dev/null; then
+    for x in gcc clang cc; do
+        if c="$(which $x)"; then
+            t=$(mktemp) && "$c" -w -o "$t" "$d/bsvm.c" 2>/dev/null >/dev/null
+            if [ $? -eq 0 ]; then
+                "$t" "$@"
+                e=$?
+                rm -f "$t"
+                exit $e
+            fi
+        fi
+    done
+fi
+
+# Try scripted VM implementations (in order of preference).
 c="$(which python3)" && "$c" "$d/bsvm.py" "$@" ; exit $?
 c="$(which python)" && "$c" "$d/bsvm.py" "$@" ; exit $?
 c="$(which python2)" && "$c" "$d/bsvm.py" "$@" ; exit $?

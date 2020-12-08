@@ -41,6 +41,8 @@ _BASHVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.bash"
 _BASHVM_OUT = _OUT_DIR / "bsvm.bash"
 _BATVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.bat"
 _BATVM_OUT = _OUT_DIR / "bsvm.bat"
+_CVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.c"
+_CVM_OUT = _OUT_DIR / "bsvm.c"
 _PSVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.ps1"
 _PSVM_OUT = _OUT_DIR / "bsvm.ps1"
 _PYVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.py"
@@ -77,11 +79,14 @@ def compile_file(src_name, verbosity_level):
 
 
 def remove_line_comment(line, start_str="#"):
-    # TODO(m): Add support for start_str in strings.
-    try:
-        return line[: line.index(start_str)].rstrip() + "\n"
-    except ValueError:
-        return line
+    slen = len(start_str)
+    inside_string = False
+    for k in range(len(line)):
+        if line[k] in ['"', "'"] and (k == 0 or line[k-1] != "\\"):
+            inside_string = not inside_string
+        elif (not inside_string) and line[k:k+slen] == start_str:
+            return line[:k].rstrip() + "\n"
+    return line
 
 
 def gen_bash(code, verbosity_level, debug):
@@ -93,9 +98,9 @@ def gen_bash(code, verbosity_level, debug):
         line = lines[k]
 
         # Perform template substitutions.
-        if line.startswith("prg="):
+        if line.startswith("p="):
             prg_str = bin2str.convert(code, use_hex=False)
-            line = f"prg='{prg_str}'\n"
+            line = f"p='{prg_str}'\n"
 
         # Perform simple minification (except for debug builds).
         if not debug:
@@ -126,11 +131,11 @@ def gen_bat(code, verbosity_level, debug):
         line = lines[k].rstrip() + "\n"
 
         # Perform template substitutions.
-        if line.startswith("set prg="):
+        if line.startswith("set p="):
             prg_str = bin2str.convert(code, use_hex=True)
-            line = f"set prg={prg_str}\n"
-        elif line.startswith("set /A prg_size="):
-            line = f"set /A prg_size={len(code)}\n"
+            line = f"set p={prg_str}\n"
+        elif line.startswith("set /A ps="):
+            line = f"set /A ps={len(code)}\n"
 
         # Perform simple minification (except for debug builds).
         if not debug:
@@ -159,6 +164,42 @@ def gen_bat(code, verbosity_level, debug):
         lines[k] = line.replace("\n", "\r\n")
 
     write_file(_BATVM_OUT, lines, make_executable=True)
+
+
+def gen_c(code, verbosity_level, debug):
+    if verbosity_level >= 1:
+        print(f"Generating {_CVM_OUT}")
+
+    lines = read_file(_CVM_TEMPLATE)
+    for k in range(len(lines)):
+        line = lines[k]
+
+        # Perform template substitutions.
+        if line.startswith("const char p[]="):
+            prg_str = bin2str.convert(code, use_hex=False).replace("\\", "\\\\")
+            line = f"const char p[]=\"{prg_str}\";"
+
+        # Perform simple minification (except for debug builds).
+        if not debug:
+            # Remove comments.
+            line = remove_line_comment(line, "//")
+
+            # Remove indent, trailing whitespace and newlines.
+            line = line.strip()
+
+            # Remove debug code.
+            if ("WriteDebug" in line):
+                line = ""
+
+            # Reinstate newline for perprocessor directives.
+            if line.startswith("#"):
+                line += "\n"
+                if k > 0 and lines[k-1] and not lines[k-1].endswith("\n"):
+                    lines[k-1] += "\n"
+
+        lines[k] = line
+
+    write_file(_CVM_OUT, lines, make_executable=False)
 
 
 def gen_powershell(code, verbosity_level, debug):
@@ -204,9 +245,9 @@ def gen_python(code, verbosity_level, debug):
         line = lines[k]
 
         # Perform template substitutions.
-        if line.startswith("prg="):
+        if line.startswith("p="):
             prg_str = bin2str.convert(code, use_hex=False).replace("\\", "\\\\")
-            line = f"prg='{prg_str}'\n"
+            line = f"p='{prg_str}'\n"
 
         # Perform simple minification (except for debug builds).
         if not debug:
@@ -262,6 +303,7 @@ def build(verbosity_level, debug):
     # Generate the different interpreters.
     gen_bash(code, verbosity_level, debug)
     gen_bat(code, verbosity_level, debug)
+    gen_c(code, verbosity_level, debug)
     gen_powershell(code, verbosity_level, debug)
     gen_python(code, verbosity_level, debug)
 
