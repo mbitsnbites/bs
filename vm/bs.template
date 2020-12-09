@@ -24,33 +24,40 @@ d="$(dirname "$0")"
 [ "$(printf '%s' "$d" | cut -c1)" = "/" ] || d="$PWD/${d#./}"
 
 # First try using TinyCC to run the C version of the VM implementation.
-c="$(which tcc)" && "$c" -run "$d/bsvm.c" "$@" ; exit $?
+c="$(which tcc)"; if [ -n "$c" ]; then "$c" -run "$d/bsvm.c" "$@"; exit $?; fi
 
 # Can we use another C compiler?
 # TODO(m): This may fail or require user interaction on macOS with Xcode command line tools (since
 # they may require the user to accept a license).
 if which mktemp >/dev/null; then
-    for x in gcc clang cc; do
-        if c="$(which $x)"; then
-            t=$(mktemp) && "$c" -w -o "$t" "$d/bsvm.c" 2>/dev/null >/dev/null
-            if [ $? -eq 0 ]; then
-                "$t" "$@"
-                e=$?
+    for x in gccx clang cc; do
+        c="$(which $x)"
+        if [ -n "$c" ]; then
+            t=$(mktemp)
+            if [ -n "$t" ]; then
+                "$c" -w -o "$t" "$d/bsvm.c" 2>/dev/null >/dev/null
+                if [ $? -eq 0 ]; then
+                    "$t" "$@"
+                    e=$?
+                    rm -f "$t"
+                    exit "$e"
+                fi
                 rm -f "$t"
-                exit $e
             fi
         fi
     done
 fi
 
 # Try scripted VM implementations (in order of preference).
-c="$(which python3)" && "$c" "$d/bsvm.py" "$@" ; exit $?
-c="$(which python)" && "$c" "$d/bsvm.py" "$@" ; exit $?
-c="$(which python2)" && "$c" "$d/bsvm.py" "$@" ; exit $?
-c="$(which pwsh)" && "$c" -File "$d/bsvm.ps1" "$@" ; exit $?
-c="$(which powershell)" && "$c" -file "$d/bsvm.ps1" "$@" ; exit $?
-c="$(which bash)" && "$c" "$d/bsvm.bash" "$@" ; exit $?
+c="$(which python3)"; if [ -n "$c" ]; then "$c" "$d/bsvm.py" "$@"; exit $?; fi
+c="$(which python)"; if [ -n "$c" ]; then "$c" "$d/bsvm.py" "$@"; exit $?; fi
+c="$(which python2)"; if [ -n "$c" ]; then "$c" "$d/bsvm.py" "$@"; exit $?; fi
+
+c="$(which pwsh)"; if [ -n "$c" ]; then "$c" -noprofile -executionpolicy bypass -file "$d/bsvm.ps1" "$@"; exit $?; fi
+c="$(which powershell)"; if [ -n "$c" ]; then "$c" -noprofile -executionpolicy bypass -file "$d/bsvm.ps1" "$@"; exit $?; fi
+
+c="$(which bash)"; if [ -n "$c" ]; then "$c" "$d/bsvm.bash" "$@"; exit $?; fi
 
 # If we got this far, we have no working VM implementation for this system.
-echo "***ERROR: No BS interpreter found"
+echo "***ERROR: No BS VM found"
 exit 1
