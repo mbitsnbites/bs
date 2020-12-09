@@ -29,20 +29,22 @@ c="$(which tcc)"; if [ -n "$c" ]; then "$c" -run "$d/bsvm.c" "$@"; exit $?; fi
 # Can we use another C compiler?
 # TODO(m): This may fail or require user interaction on macOS with Xcode command line tools (since
 # they may require the user to accept a license).
-if which mktemp >/dev/null; then
-    for x in gccx clang cc; do
+if which md5sum >/dev/null; then
+    cdir="$HOME/.cache/bs"
+    for x in gcc clang cc; do
         c="$(which $x)"
         if [ -n "$c" ]; then
-            t=$(mktemp)
-            if [ -n "$t" ]; then
-                "$c" -w -o "$t" "$d/bsvm.c" 2>/dev/null >/dev/null
-                if [ $? -eq 0 ]; then
-                    "$t" "$@"
-                    e=$?
-                    rm -f "$t"
-                    exit "$e"
-                fi
+            # Look up cache, and build if necessary.
+            e="$cdir/bsvm.c.$x.$(md5sum "$d/bsvm.c" | cut -c1-32)"
+            if [ ! -f "$e" ]; then
+                mkdir -p "$cdir"
+                t="$e.$$"
+                "$c" -w -o "$t" "$d/bsvm.c" 2>/dev/null >/dev/null && mv "$t" "$e"
                 rm -f "$t"
+            fi
+            if [ -f "$e" ]; then
+                "$e" "$@"
+                exit $?
             fi
         fi
     done
