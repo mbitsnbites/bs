@@ -26,38 +26,59 @@ d="$(dirname "$0")"
 # First try using TinyCC to run the C version of the VM implementation.
 c="$(which tcc)"; if [ -n "$c" ]; then "$c" -run "$d/bsvm.c" "$@"; exit $?; fi
 
-# Can we use another C compiler?
-# TODO(m): This may fail or require user interaction on macOS with Xcode command line tools (since
-# they may require the user to accept a license).
-if which md5sum >/dev/null; then
-    cdir="$HOME/.cache/bs"
+# Try to compile the C VM and store the result in a per-user compilation cache.
+# Note: It seems like a bad idea to allow root/sudo to create cache files, so we don't.
+if which md5sum >/dev/null && [ "$(id -u)" != "0" ]; then
+    # Find a supported C compiler.
     for x in gcc clang cc; do
         c="$(which $x)"
-        if [ -n "$c" ]; then
-            # Look up cache, and build if necessary.
-            e="$cdir/bsvm.c.$x.$(md5sum "$d/bsvm.c" | cut -c1-32)"
-            if [ ! -f "$e" ]; then
-                mkdir -p "$cdir"
-                t="$e.$$"
-                "$c" -w -o "$t" "$d/bsvm.c" 2>/dev/null >/dev/null && mv "$t" "$e"
-                rm -f "$t"
-            fi
-            if [ -f "$e" ]; then
-                "$e" "$@"
-                exit $?
+        if [ -n "$c" ]; then break; fi
+    done
+
+    if [ -n "$c" ]; then
+        # Determine the cache directory.
+        case "$(uname)" in
+        Darwin*) cdir="$HOME/Library/Caches/bs" ;;
+              *) cdir="${XDG_CACHE_HOME:-$HOME/.cache}/bs" ;;
+        esac
+
+        # Determine name of the cache entry (i.e. the executable file).
+        e="$cdir/bsvm.$(md5sum "$d/bsvm.c" | cut -c1-32)"
+
+        # If we have a cache miss, try to build the VM using the selected compiler.
+        if [ ! -f "$e" ]; then
+            mkdir -p "$cdir"
+            t="$e.$$"
+            # TODO(m): This may fail or require user interaction on macOS with Xcode command line
+            # tools (since they may require the user to accept a license).
+            "$c" -o "$t" "$d/bsvm.c" 2>/dev/null >/dev/null && mv "$t" "$e"
+            rm -f "$t"
+
+            # Clean out cache entries that are older than 7 days.
+            if which find >/dev/null && [ -d "$cdir" ]; then
+                find "$cdir" -mtime +7 -type f -delete 2>/dev/null >/dev/null
             fi
         fi
-    done
+
+        # Execute the compiled VM if it can be found in the cache.
+        if [ -f "$e" ]; then
+            "$e" "$@"
+            exit $?
+        fi
+    fi
 fi
 
-# Try scripted VM implementations (in order of preference).
-c="$(which python3)"; if [ -n "$c" ]; then "$c" "$d/bsvm.py" "$@"; exit $?; fi
-c="$(which python)"; if [ -n "$c" ]; then "$c" "$d/bsvm.py" "$@"; exit $?; fi
-c="$(which python2)"; if [ -n "$c" ]; then "$c" "$d/bsvm.py" "$@"; exit $?; fi
+# Try Python (Python2 is generally faster than Python3).
+for x in python2 python3 python; do
+  c="$(which $x)"; if [ -n "$c" ]; then "$c" "$d/bsvm.py" "$@"; exit $?; fi
+done
 
-c="$(which pwsh)"; if [ -n "$c" ]; then "$c" -noprofile -executionpolicy bypass -file "$d/bsvm.ps1" "$@"; exit $?; fi
-c="$(which powershell)"; if [ -n "$c" ]; then "$c" -noprofile -executionpolicy bypass -file "$d/bsvm.ps1" "$@"; exit $?; fi
+# If, by accident, the system has PowerShell installed...
+for x in pwsh powershell; do
+  c="$(which $x)"; if [ -n "$c" ]; then "$c" -noprofile -executionpolicy bypass -file "$d/bsvm.ps1" "$@"; exit $?; fi
+done
 
+# Last resort: Use Bash.
 c="$(which bash)"; if [ -n "$c" ]; then "$c" "$d/bsvm.bash" "$@"; exit $?; fi
 
 # If we got this far, we have no working VM implementation for this system.
