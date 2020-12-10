@@ -24,14 +24,14 @@ d="$(dirname "$0")"
 [ "$(printf '%s' "$d" | cut -c1)" = "/" ] || d="$PWD/${d#./}"
 
 # First try using TinyCC to run the C version of the VM implementation.
-c="$(which tcc)"; if [ -n "$c" ]; then "$c" -run "$d/bsvm.c" "$@"; exit $?; fi
+c="$(command -v tcc)"; if [ -n "$c" ]; then "$c" -run "$d/bsvm.c" "$@"; exit $?; fi
 
 # Try to compile the C VM and store the result in a per-user compilation cache.
 # Note: It seems like a bad idea to allow root/sudo to create cache files, so we don't.
-if which md5sum >/dev/null && [ "$(id -u)" != "0" ]; then
+if command -v md5sum >/dev/null && [ "$(id -u)" != "0" ]; then
     # Find a supported C compiler.
     for x in gcc clang cc; do
-        c="$(which $x)"
+        c="$(command -v $x)"
         if [ -n "$c" ]; then break; fi
     done
 
@@ -51,11 +51,11 @@ if which md5sum >/dev/null && [ "$(id -u)" != "0" ]; then
             t="$e.$$"
             # TODO(m): This may fail or require user interaction on macOS with Xcode command line
             # tools (since they may require the user to accept a license).
-            "$c" -o "$t" "$d/bsvm.c" 2>/dev/null >/dev/null && mv "$t" "$e"
+            "$c" -O2 -o "$t" "$d/bsvm.c" 2>/dev/null >/dev/null && mv "$t" "$e"
             rm -f "$t"
 
             # Clean out cache entries that are older than 7 days.
-            if which find >/dev/null && [ -d "$cdir" ]; then
+            if command -v find >/dev/null && [ -d "$cdir" ]; then
                 find "$cdir" -mtime +7 -type f -delete 2>/dev/null >/dev/null
             fi
         fi
@@ -70,16 +70,16 @@ fi
 
 # Try Python (Python2 is generally faster than Python3).
 for x in python2 python3 python; do
-  c="$(which $x)"; if [ -n "$c" ]; then "$c" "$d/bsvm.py" "$@"; exit $?; fi
+  c="$(command -v $x)"; if [ -n "$c" ]; then "$c" "$d/bsvm.py" "$@"; exit $?; fi
 done
 
 # If, by accident, the system has PowerShell installed...
 for x in pwsh powershell; do
-  c="$(which $x)"; if [ -n "$c" ]; then "$c" -noprofile -executionpolicy bypass -file "$d/bsvm.ps1" "$@"; exit $?; fi
+  c="$(command -v $x)"; if [ -n "$c" ]; then "$c" -noprofile -executionpolicy bypass -file "$d/bsvm.ps1" "$@"; exit $?; fi
 done
 
 # Last resort: Use Bash.
-c="$(which bash)"; if [ -n "$c" ]; then "$c" "$d/bsvm.bash" "$@"; exit $?; fi
+c="$(command -v bash)"; if [ -n "$c" ]; then "$c" "$d/bsvm.bash" "$@"; exit $?; fi
 
 # If we got this far, we have no working VM implementation for this system.
 echo "***ERROR: No BS VM found"

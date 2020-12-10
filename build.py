@@ -53,14 +53,14 @@ def read_file(name):
     lines = []
     with open(name, "rb") as f:
         for line in f.readlines():
-            lines.append(line.decode("utf8").rstrip() + "\n")
+            lines.append(line.decode("utf8").rstrip())
     return lines
 
 
-def write_file(name, lines, make_executable=False):
+def write_file(name, lines, make_executable=False, line_end="\n"):
     with open(name, "wb") as f:
         for line in lines:
-            f.write(line.encode("utf8"))
+            f.write((line.rstrip() + line_end).encode("utf8"))
 
     if make_executable:
         st = os.stat(name)
@@ -82,40 +82,73 @@ def remove_line_comment(line, start_str="#"):
     slen = len(start_str)
     inside_string = False
     for k in range(len(line)):
-        if line[k] in ['"', "'"] and (k == 0 or line[k-1] != "\\"):
+        if line[k] in ['"', "'"] and (k == 0 or line[k - 1] != "\\"):
             inside_string = not inside_string
-        elif (not inside_string) and line[k:k+slen] == start_str:
-            return line[:k].rstrip() + "\n"
+        elif (not inside_string) and line[k : k + slen] == start_str:
+            return line[:k].rstrip()
     return line
+
+
+def minify_bat(lines):
+    filtered_lines = []
+    do_minify = True
+    for line in lines:
+        # Start/stop minification?
+        nominify_directive = line.startswith("REM NOMINIFY")
+        minify_directive = line.startswith("REM MINIFY")
+        if minify_directive:
+            do_minify = True
+
+        if do_minify:
+            # Strip indent and trailing whitespace.
+            line = line.strip()
+
+            # Remove comments.
+            line = remove_line_comment(line, start_str="REM")
+
+        if line or not do_minify:
+            filtered_lines.append(line)
+
+        if nominify_directive:
+            do_minify = False
+
+    return filtered_lines
+
+
+def minify_sh(lines):
+    filtered_lines = []
+    for line in lines:
+        # Strip indent and trailing whitespace.
+        line = line.strip()
+
+        # Remove comments (except the shebang).
+        if not line.startswith("#!/"):
+            line = remove_line_comment(line)
+
+        if line:
+            filtered_lines.append(line)
+
+    return filtered_lines
 
 
 def gen_bash(code, verbosity_level, debug):
     if verbosity_level >= 1:
         print(f"Generating {_BASHVM_OUT}")
 
-    lines = read_file(_BASHVM_TEMPLATE)
-    for k in range(len(lines)):
-        line = lines[k]
-
+    old_lines = read_file(_BASHVM_TEMPLATE)
+    lines = []
+    for line in old_lines:
         # Perform template substitutions.
         if line.startswith("p="):
             prg_str = bin2str.convert(code, use_hex=False)
-            line = f"p='{prg_str}'\n"
+            line = f"p='{prg_str}'"
 
-        # Perform simple minification (except for debug builds).
-        if not debug:
-            # Remove indent.
-            line = line.lstrip()
+        # Remove debug code in non-debug builds.
+        if debug or (not line.lstrip().startswith("WriteDebug")):
+            lines.append(line)
 
-            # Remove comments (except the shebang).
-            if k > 0:
-                line = remove_line_comment(line)
-
-            # Remove debug code and empty lines.
-            if line.lstrip().startswith("WriteDebug") or line.strip() == "":
-                line = ""
-
-        lines[k] = line
+    if not debug:
+        lines = minify_sh(lines)
 
     write_file(_BASHVM_OUT, lines, make_executable=True)
 
@@ -124,60 +157,45 @@ def gen_bat(code, verbosity_level, debug):
     if verbosity_level >= 1:
         print(f"Generating {_BATVM_OUT}")
 
-    lines = read_file(_BATVM_TEMPLATE)
-    num_keep_lines = 0
+    old_lines = read_file(_BATVM_TEMPLATE)
+    lines = []
     num_del_lines = 0
-    for k in range(len(lines)):
-        line = lines[k].rstrip() + "\n"
-
+    for line in old_lines:
         # Perform template substitutions.
         if line.startswith("set p="):
             prg_str = bin2str.convert(code, use_hex=True)
-            line = f"set p={prg_str}\n"
+            line = f"set p={prg_str}"
         elif line.startswith("set /A ps="):
-            line = f"set /A ps={len(code)}\n"
+            line = f"set /A ps={len(code)}"
 
-        # Perform simple minification (except for debug builds).
+        # Remove debug code in non-debug builds.
         if not debug:
-            # We need to preserve a couple of lines after "set AX10=".
-            if line.startswith("set AX10="):
-                num_keep_lines = 3
-
-            # Remove indent.
-            if num_keep_lines < 1:
-                line = line.lstrip()
-
-            # Remove comments.
-            line = remove_line_comment(line, start_str="REM")
-
-            # Remove debug code and empty lines.
             if line.startswith(":WriteDebug"):
                 num_del_lines = 3
-            if num_del_lines > 0 or (num_keep_lines < 1 and (line.lstrip().startswith("call :WriteDebug") or line.strip() == "")):
-                line = ""
-
-            if num_keep_lines > 0:
-                num_keep_lines -= 1
+            if num_del_lines == 0 and not line.lstrip().startswith("call :WriteDebug"):
+                lines.append(line)
             if num_del_lines > 0:
                 num_del_lines -= 1
+        else:
+            lines.append(line)
 
-        lines[k] = line.replace("\n", "\r\n")
+    if not debug:
+        lines = minify_bat(lines)
 
-    write_file(_BATVM_OUT, lines, make_executable=True)
+    write_file(_BATVM_OUT, lines, make_executable=True, line_end="\r\n")
 
 
 def gen_c(code, verbosity_level, debug):
     if verbosity_level >= 1:
         print(f"Generating {_CVM_OUT}")
 
-    lines = read_file(_CVM_TEMPLATE)
-    for k in range(len(lines)):
-        line = lines[k]
-
+    old_lines = read_file(_CVM_TEMPLATE)
+    lines = []
+    for line in old_lines:
         # Perform template substitutions.
         if line.startswith("const char p[]="):
             prg_str = bin2str.convert(code, use_hex=False).replace("\\", "\\\\")
-            line = f"const char p[]=\"{prg_str}\";"
+            line = f'const char p[]="{prg_str}";'
 
         # Perform simple minification (except for debug builds).
         if not debug:
@@ -188,16 +206,20 @@ def gen_c(code, verbosity_level, debug):
             line = line.strip()
 
             # Remove debug code.
-            if ("WriteDebug" in line):
+            if "WriteDebug" in line:
                 line = ""
 
-            # Reinstate newline for perprocessor directives.
-            if line.startswith("#"):
-                line += "\n"
-                if k > 0 and lines[k-1] and not lines[k-1].endswith("\n"):
-                    lines[k-1] += "\n"
-
-        lines[k] = line
+            if line:
+                # Preprocessor directives need to be on separate lines.
+                if line.startswith("#"):
+                    lines.append(line)
+                else:
+                    if len(lines) == 0 or lines[-1].startswith("#"):
+                        lines.append(line)
+                    else:
+                        lines[-1] += line
+        else:
+            lines.append(line)
 
     write_file(_CVM_OUT, lines, make_executable=False)
 
@@ -206,10 +228,9 @@ def gen_powershell(code, verbosity_level, debug):
     if verbosity_level >= 1:
         print(f"Generating {_PSVM_OUT}")
 
-    lines = read_file(_PSVM_TEMPLATE)
-    for k in range(len(lines)):
-        line = lines[k]
-
+    old_lines = read_file(_PSVM_TEMPLATE)
+    lines = []
+    for line in old_lines:
         # Perform template substitutions.
         if line.startswith("$prg = "):
             prg_str = bin2str.convert(code, use_hex=False)
@@ -217,20 +238,12 @@ def gen_powershell(code, verbosity_level, debug):
         elif line.startswith("$DebugPreference"):
             line = '$DebugPreference = "Continue"\n' if debug else ""
 
-        # Perform simple minification (except for debug builds).
-        if not debug:
-            # Remove indent.
-            line = line.lstrip()
+        # Remove debug code in non-debug builds.
+        if debug or (not line.lstrip().startswith("Write-Debug")):
+            lines.append(line)
 
-            # Remove comments (except the shebang).
-            if k > 0:
-                line = remove_line_comment(line)
-
-            # Remove debug code and empty lines.
-            if line.lstrip().startswith("Write-Debug") or line.strip() == "":
-                line = ""
-
-        lines[k] = line
+    if not debug:
+        lines = minify_sh(lines)
 
     write_file(_PSVM_OUT, lines, make_executable=True)
 
@@ -239,20 +252,19 @@ def gen_python(code, verbosity_level, debug):
     if verbosity_level >= 1:
         print(f"Generating {_PYVM_OUT}")
 
-    lines = read_file(_PYVM_TEMPLATE)
+    old_lines = read_file(_PYVM_TEMPLATE)
+    lines = []
     del_lext_line = False
-    for k in range(len(lines)):
-        line = lines[k]
-
+    for line in old_lines:
         # Perform template substitutions.
         if line.startswith("p="):
             prg_str = bin2str.convert(code, use_hex=False).replace("\\", "\\\\")
-            line = f"p='{prg_str}'\n"
+            line = f"p='{prg_str}'"
 
         # Perform simple minification (except for debug builds).
         if not debug:
             # Remove comments (except the shebang).
-            if k > 0:
+            if not line.startswith("#!/"):
                 line = remove_line_comment(line)
 
             # Remove debug code and empty lines.
@@ -267,29 +279,33 @@ def gen_python(code, verbosity_level, debug):
                 del_lext_line = True
             else:
                 del_lext_line = False
-
-        lines[k] = line
+            if line:
+                lines.append(line)
+        else:
+            lines.append(line)
 
     write_file(_PYVM_OUT, lines, make_executable=True)
 
 
-def gen_bat_frontend(verbosity_level):
+def gen_bat_frontend(verbosity_level, debug):
     if verbosity_level >= 1:
         print(f"Generating {_BAT_FRONTEND_OUT}")
 
     lines = read_file(_BAT_FRONTEND_TEMPLATE)
-    for k in range(len(lines)):
-        lines[k] = lines[k].rstrip() + "\r\n"
-    write_file(_BAT_FRONTEND_OUT, lines, make_executable=True)
+    if not debug:
+        lines = minify_bat(lines)
+
+    write_file(_BAT_FRONTEND_OUT, lines, make_executable=True, line_end="\r\n")
 
 
-def gen_sh_frontend(verbosity_level):
+def gen_sh_frontend(verbosity_level, debug):
     if verbosity_level >= 1:
         print(f"Generating {_SH_FRONTEND_OUT}")
 
     lines = read_file(_SH_FRONTEND_TEMPLATE)
-    for k in range(len(lines)):
-        lines[k] = lines[k].rstrip() + "\n"
+    if not debug:
+        lines = minify_sh(lines)
+
     write_file(_SH_FRONTEND_OUT, lines, make_executable=True)
 
 
@@ -308,8 +324,8 @@ def build(verbosity_level, debug):
     gen_python(code, verbosity_level, debug)
 
     # Generate the frontends.
-    gen_bat_frontend(verbosity_level)
-    gen_sh_frontend(verbosity_level)
+    gen_bat_frontend(verbosity_level, debug)
+    gen_sh_frontend(verbosity_level, debug)
 
 
 def main():

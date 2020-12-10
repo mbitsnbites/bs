@@ -58,6 +58,13 @@ int getI(int a){
   return ((int)m[a])|(((int)m[a+1])<<8)|(((int)m[a+2])<<16)|(((int)m[a+3])<<24);
 }
 
+void setI(int a,int v){
+  m[a]=v;
+  m[a+1]=v>>8;
+  m[a+2]=v>>16;
+  m[a+3]=v>>24;
+}
+
 void getS(int a){
   // Read the string length (32-bit integer).
   int l=getI(a);
@@ -86,11 +93,9 @@ int main(int argc, char** argv){
     int c1=p[i*3]-40,    // 6 bits (0-63)
         c2=p[i*3+1]-40,  // 5 bits (0-31)
         c3=p[i*3+2]-40;  // 5 bits (0-31)
-    int b1=(c1<<2)|(c2>>3),
-        b2=((c2&7)<<5)|c3;
-    m[i*2]=b1;
-    m[i*2+1]=b2;
-    WriteDebug("(c1,c2,c3)=(%d,%d,%d) -> (%d,%d)",c1,c2,c3,b1,b2);
+    m[i*2]=(c1<<2)|(c2>>3);
+    m[i*2+1]=((c2&7)<<5)|c3;
+    WriteDebug("(c1,c2,c3)=(%d,%d,%d) -> (%d,%d)",c1,c2,c3,m[i*2],m[i*2+1]);
   }
 
   // Main execution loop.
@@ -151,7 +156,7 @@ int main(int argc, char** argv){
     }
 
     // Execute the instruction.
-    switch (op){
+    switch(op){
     case 1: // MOV
       WriteDebug("MOV R%d, %d",o[0],o[1]);
       r[o[0]]=o[1];
@@ -169,17 +174,12 @@ int main(int argc, char** argv){
 
     case 4: // STB
       WriteDebug("STB %d, %d, %d",o[0],o[1],o[2]);
-      m[o[1]+o[2]]=o[0]&255;
+      m[o[1]+o[2]]=o[0];
       break;
 
     case 5: // STW
       WriteDebug("STW %d, %d, %d",o[0],o[1],o[2]);
-      a=o[1]+o[2];
-      v=o[0];
-      m[a]=v&255;
-      m[a+1]=(v>>8)&255;
-      m[a+2]=(v>>16)&255;
-      m[a+3]=(v>>24)&255;
+      setI(o[1]+o[2],o[0]);
       break;
 
     case 6: // JMP
@@ -190,11 +190,7 @@ int main(int argc, char** argv){
     case 7: // JSR
       WriteDebug("JSR %d",o[0]);
       r[255]-=4;  // Pre-decrement SP
-      a=r[255];
-      m[a]=pc&255;
-      m[a+1]=(pc>>8)&255;
-      m[a+2]=(pc>>16)&255;
-      m[a+3]=(pc>>24)&255;
+      setI(r[255],pc);
       pc=o[0];
       break;
 
@@ -245,12 +241,7 @@ int main(int argc, char** argv){
     case 16: // PUSH
       WriteDebug("PUSH %d",o[0]);
       r[255]-=4;  // Pre-decrement SP
-      a=r[255];
-      v=o[0];
-      m[a]=v&255;
-      m[a+1]=(v>>8)&255;
-      m[a+2]=(v>>16)&255;
-      m[a+3]=(v>>24)&255;
+      setI(r[255],o[0]);
       break;
 
     case 17: // POP

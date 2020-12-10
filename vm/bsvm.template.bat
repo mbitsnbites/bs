@@ -29,11 +29,13 @@ set /A ps=20
 
 REM Stuff for handling ASCII conversions.
 REM TODO(m): Would love to support UTF-8 and more control characters!
-REM NOTE: The two empty lines after the AX10 definition are required!
 setlocal DisableDelayedExpansion
+REM NOTE: The two empty lines after the AX10 definition are required!
+REM NOMINIFY
 set AX10=^
 
 
+REM MINIFY
 set AX33=!
 set AX34="
 set AX37=%%
@@ -393,20 +395,20 @@ set /A running=1
         goto :mxl
 
     :I29
-        call :getString "!o[0]!"
+        call :getS "!o[0]!"
         call :WriteDebug "PRINTLN !o[0]! (%s%)"
         echo %s%
         goto :mxl
 
     :I30
-        call :getString "!o[0]!"
+        call :getS "!o[0]!"
         call :WriteDebug "PRINT !o[0]! (%s%)"
         REM TODO(m): Implement print without a newline.
         echo %s%
         goto :mxl
 
     :I31
-        call :getString "!o[0]!"
+        call :getS "!o[0]!"
         call :WriteDebug "RUN !o[0]! (%s%)"
         %s%
         goto :mxl
@@ -423,7 +425,7 @@ REM Helper functions.
   echo DEBUG: %~1 1>&2
   exit /B 0
 
-:getString
+:getS
   REM Read the string length (32-bit integer).
   set a=%~1%
   set /A b0=!m[%a%]!
@@ -439,11 +441,11 @@ REM Helper functions.
   set /A a2=a+l
   set /A a=a+1
   set s=
-  :getStringLoop
+  :gsl
     set /A c=!m[%a%]!
     set d=!asc:~%c%,1!
     for %%i in (10 33 34 37 38 60 62 124) do if %c%==%%i set "d=^!AX%c%^!"
     set "s=!s!!d!"
     set /A a=a+1
-    if %a% leq %a2% goto :getStringLoop
+    if %a% leq %a2% goto :gsl
   exit /B 0
