@@ -1,0 +1,38 @@
+/*
+ This is an EBNF description of the BS language.
+ Notation: https://www.w3.org/TR/xml/#sec-notation
+ Evaluate: https://bottlecaps.de/rr/ui
+*/
+program ::= block
+block ::= (statement space+)*
+
+statement ::= assignment |
+              function_call |
+              ("if" space+ expr space+ block (space* "else" space+ block)? "end") |
+              ("while" space+ expr space+ block "end")
+
+assignment ::= name space* "=" space* expr
+function_call ::= name space* "(" expr (space* "," space* expr)* ")"
+
+expr ::= ("(" space*)? (literal | name | function_call | unop space* expr | expr space* binop space* expr) (space* ")")?
+
+name ::= alphabetic_character (alphabetic_character | digit)*
+
+literal ::= number | string | "true" | "false"
+number ::= "-"? digit+
+string ::= '"' ((all_characters - '"') | '\"' | "\n" | "\r" | "\t" )* '"'
+
+binop ::= "+" | "-" | "*" | "/" | "%" |
+          "and" | "or" |
+          "<" | "<=" | ">" | ">=" | "==" | "!="
+unop ::= "-" | "~" |
+         "not"
+
+alphabetic_character ::= [a-zA-Z]
+digit ::= [0-9]
+
+space ::= #x9 | #xA | #xD | #x20 | comment
+comment ::= "#" all_characters* endl
+endl ::= #xA | #xD
+all_characters ::= [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+
