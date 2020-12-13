@@ -56,4 +56,16 @@ The last operand of an instruction (if any) can have one of the following three 
 
 ## Instructions
 
+| OP | Form | Operation | Description |
+|---|---|---|---|
+| 1 | MOV R*m*, X | R*m* ← X | Move |
+| 2 | LDB R*m*, R*n*, X | R*m* ← [R*n* + X] | Load unsigned byte |
+| 3 | LDW R*m*, R*n*, X | R*m* ← [R*n* + X] | Load word |
+| 4 | STB R*m*, R*n*, X | [R*n* + X] ← R*m* | Store byte (lowest 8 bits of R*m*) |
+| 5 | STW R*m*, R*n*, X | [R*n* + X] ← R*m* | Store word |
+| 6 | JMP X | PC ← X | Jump |
+| 7 | JSR X | [SP] ← PC<br>SP ← SP - 4<br>PC ← X | Jump to subroutine |
+| 8 | RTS | SP ← SP + 4<br>PC ← [SP] | Return from subroutine |
+| ... | ... | ... | ... |
+
 TBD
