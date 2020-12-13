@@ -25,7 +25,9 @@ p="DON'T MODIFY THIS LINE! IT IS REPLACED BY THE BUILD PROCESS!"
 # Constants.
 _EQ=1
 _LT=2
+_LE=3 # _LT | _EQ
 _GT=4
+_GE=5 # _GT | _EQ
 
 # Instruction operand configuration (one element per instruction).
 #
@@ -104,24 +106,19 @@ while [ $running -eq 1 ];do
 
   # Read the operands.
   o=()
-  k=0
-  n=${nout[$op]}
-  while [ $k -lt $n ];do
+  if [ ${nout[$op]} = 1 ];then
     # Get register number (0-255)
     o+=(${m[$pc]})
     pc=$((pc+1))
-    k=$((k+1))
-  done
-  n=$((k+${ninr[$op]}))
-  while [ $k -lt $n ];do
+  fi
+  n=$((pc+${ninr[$op]}))
+  while [ $pc -lt $n ];do
     # Get register value
     o+=(${r[${m[$pc]}]})
     pc=$((pc+1))
-    k=$((k+1))
   done
-  n=$((k+${ninx[$op]}))
-  while [ $k -lt $n ];do
-    if [ $at -eq 3 ];then
+  if [ ${ninx[$op]} = 1 ];then
+    if [ $at = 3 ];then
       # 32-bit immediate.
       b0=${m[$pc]}
       b1=${m[$((pc+1))]}
@@ -134,23 +131,19 @@ while [ $running -eq 1 ];do
       v=${m[$pc]}
       pc=$((pc+1))
 
-      if [ $at -eq 0 ];then
+      if [ $at = 0 ];then
         # Register value.
         v=${r[$v]}
       else
         # Convert unsigned to signed byte (-128..127).
-        if [ $v -gt 127 ];then v=$((v-256));fi
+        [ $v -gt 127 ] && v=$((v-256))
 
-        if [ $at -eq 2 ];then
-          # 8-bit PC-relative offset.
-          v=$((pc0+v))
-        fi
+        [ $at = 2 ] && v=$((pc0+v)) # 8-bit PC-relative offset.
         # else v=$v (at=1, 8-bit signed immedate)
       fi
     fi
     o+=($v)
-    k=$((k+1))
-  done
+  fi
 
   # Execute the instruction.
   case $op in
@@ -218,40 +211,40 @@ while [ $running -eq 1 ];do
 
     9) # BEQ
       WriteDebug "BEQ ${o[0]}"
-      if [ $((cc&_EQ)) -ne 0 ];then pc=${o[0]};fi
+      [ $((cc&_EQ)) -ne 0 ] && pc=${o[0]}
       ;;
 
     10) # BNE
       WriteDebug "BNE ${o[0]}"
-      if [ $((cc&_EQ)) -eq 0 ];then pc=${o[0]};fi
+      [ $((cc&_EQ)) -eq 0 ] && pc=${o[0]}
       ;;
 
     11) # BLT
       WriteDebug "BLT ${o[0]}"
-      if [ $((cc&_LT)) -ne 0 ];then pc=${o[0]};fi
+      [ $((cc&_LT)) -ne 0 ] && pc=${o[0]}
       ;;
 
     12) # BLE
       WriteDebug "BLE ${o[0]}"
-      if [ $((cc&_LT)) -ne 0 ] || [ $((cc&_EQ)) -ne 0 ];then pc=${o[0]};fi
+      [ $((cc&_LE)) -ne 0 ] && pc=${o[0]}
       ;;
 
     13) # BGT
       WriteDebug "BGT ${o[0]}"
-      if [ $((cc&_GT)) -ne 0 ];then pc=${o[0]};fi
+      [ $((cc&_GT)) -ne 0 ] && pc=${o[0]}
       ;;
 
     14) # BGE
       WriteDebug "BGE ${o[0]}"
-      if [ $((cc&_GT)) -ne 0 ] || [ $((cc&_EQ)) -ne 0 ];then pc=${o[0]};fi
+      [ $((cc&_GE)) -ne 0 ] && pc=${o[0]}
       ;;
 
     15) # CMP
       WriteDebug "CMP ${o[0]}, ${o[1]}"
       cc=0
-      if [ ${o[0]} -eq ${o[1]} ];then cc=$((cc|_EQ));fi
-      if [ ${o[0]} -lt ${o[1]} ];then cc=$((cc|_LT));fi
-      if [ ${o[0]} -gt ${o[1]} ];then cc=$((cc|_GT));fi
+      [ ${o[0]} -eq ${o[1]} ] && cc=_EQ
+      [ ${o[0]} -lt ${o[1]} ] && cc=$((cc|_LT))
+      [ ${o[0]} -gt ${o[1]} ] && cc=$((cc|_GT))
       ;;
 
     16) # PUSH
