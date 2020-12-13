@@ -28,7 +28,19 @@ c="$(command -v tcc)"; if [ -n "$c" ]; then "$c" -run "$d/bsvm.c" "$@"; exit $?;
 
 # Try to compile the C VM and store the result in a per-user compilation cache.
 # Note: It seems like a bad idea to allow root/sudo to create cache files, so we don't.
-if command -v md5sum >/dev/null && [ "$(id -u)" != "0" ]; then
+case "$(uname)" in
+    Darwin*)
+        h=md5
+        ho=-r
+        cdir="$HOME/Library/Caches/bs"
+        ;;
+    *)
+        h=md5sum
+        ho=
+        cdir="${XDG_CACHE_HOME:-$HOME/.cache}/bs"
+        ;;
+esac
+if command -v $h >/dev/null && [ "$(id -u)" != "0" ]; then
     # Find a supported C compiler.
     for x in gcc clang cc; do
         c="$(command -v $x)"
@@ -36,14 +48,8 @@ if command -v md5sum >/dev/null && [ "$(id -u)" != "0" ]; then
     done
 
     if [ -n "$c" ]; then
-        # Determine the cache directory.
-        case "$(uname)" in
-        Darwin*) cdir="$HOME/Library/Caches/bs" ;;
-              *) cdir="${XDG_CACHE_HOME:-$HOME/.cache}/bs" ;;
-        esac
-
         # Determine name of the cache entry (i.e. the executable file).
-        e="$cdir/bsvm.$(md5sum "$d/bsvm.c" | cut -c1-32)"
+        e="$cdir/bsvm.$($h $ho "$d/bsvm.c" | cut -c1-32)"
 
         # If we have a cache miss, try to build the VM using the selected compiler.
         if [ ! -f "$e" ]; then
