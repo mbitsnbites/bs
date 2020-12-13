@@ -3,36 +3,42 @@
  Notation: https://www.w3.org/TR/xml/#sec-notation
  Evaluate: https://bottlecaps.de/rr/ui
 */
-program ::= block
-block ::= (statement space+)*
+program ::= (space* statement? eol)*
 
-statement ::= assignment |
-              function_call |
-              ("if" space+ expr space+ block (space* "else" space+ block)? "end") |
-              ("while" space+ expr space+ block "end")
+statement ::=
+    (name space* "=" space* expr) |
+    function_call |
+    ("if" space+ expr) |
+    ("elsif" space+ expr) |
+    "else" |
+    ("while" space+ expr) |
+    ("for" name space* "=" space* number space+ "to" space+ number (space+ "step" space+ number)?) |
+    "end"
 
-assignment ::= name space* "=" space* expr
 function_call ::= name space* "(" expr (space* "," space* expr)* ")"
 
-expr ::= ("(" space*)? (literal | name | function_call | unop space* expr | expr space* binop space* expr) (space* ")")?
+expr ::= ("(" space*)? (
+    literal |
+    name |
+    function_call |
+    (unop space* expr) |
+    (expr space* binop space* expr)
+    ) (space* ")")?
 
-name ::= alphabetic_character (alphabetic_character | digit)*
+name ::= (alpha | "_") (alpha | digit | "_")*
 
 literal ::= number | string | "true" | "false"
 number ::= "-"? digit+
-string ::= '"' ((all_characters - '"') | '\"' | "\n" | "\r" | "\t" )* '"'
+string ::= "'" ((all_characters - "'") | "\'" | "\n" | "\r" | "\t" )* "'"
 
 binop ::= "+" | "-" | "*" | "/" | "%" |
-          "and" | "or" |
+          "&" | "|" | "^" | "<<" | ">>" |
           "<" | "<=" | ">" | ">=" | "==" | "!="
-unop ::= "-" | "~" |
-         "not"
+unop ::= "-" | "~"
 
-alphabetic_character ::= [a-zA-Z]
+alpha ::= [a-zA-Z]
 digit ::= [0-9]
 
-space ::= #x9 | #xA | #xD | #x20 | comment
-comment ::= "#" all_characters* endl
-endl ::= #xA | #xD
+space ::= #x9 | #xD | #x20
+eol ::= ("#" all_characters*)? #xA
 all_characters ::= [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
-
