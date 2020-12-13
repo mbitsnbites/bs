@@ -24,59 +24,6 @@ import struct
 import os
 import sys
 
-# -------------------------------------------------------------------------------------------------
-# Instruction format
-# ==================
-#
-# The instruction format is variable length, varying from one up to six bytes per instruction.
-#
-# The operation is given by the first byte of the instruction. When an operation has several
-# possible operand formats, this is indicated by the two most significant bits of the first byte:
-#
-#   Operation identifyer byte:
-#
-#   +---+-----------+
-#   |7 6|5 4 3 2 1 0|
-#   +---+-----------+
-#   | A | OP        |
-#   +---+-----------+
-#
-# ...where OP is the operation, and A is the argument type.
-#
-# Following the first byte are the operands (in order). The number of operands depends on the
-# instruction (as given by OP). All operands but the last operand must be a register operand, given
-# by a single byte:
-#
-#   Register identification byte:
-#
-#   +---------------+
-#   |7 6 5 4 3 2 1 0|
-#   +---------------+
-#   | Reg No.       |
-#   +---------------+
-#
-# There are 254 general purpose registers that can be addressed by instuctions, called R1-R254.
-# By convention, R0 (a.k.a. Z) is always zero. Additionally there is a stack pointer register, SP
-# (alias for R255), that is implicitly modified by stack manipulation instructions (PUSH, POP,
-# JSR and RTS).
-#
-# The last operand of an instruction (if any) can have one of the following three operand types (as
-# given by the argument type field, A, of the first instruction byte):
-#
-#  +----+------------------------------------------------------+
-#  | A  | Meaning                                              |
-#  +----+------------------------------------------------------+
-#  | 00 | Register                                             |
-#  | 01 | 8-bit signed immediate value                         |
-#  | 10 | 8-bit PC-relative offset                             |
-#  | 11 | 32-bit value (signed immediate or absolute address)  |
-#  +----+------------------------------------------------------+
-#
-# 32-bit values are encoded in little endian format in memory. This applies both to immediate
-# values that are stored in the program code, and values that are stored and loaded with the STW
-# and LDW instructions.
-# -------------------------------------------------------------------------------------------------
-
 # Supported operand types.
 _NONE = 0
 _REG = 1
