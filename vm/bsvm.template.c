@@ -25,10 +25,12 @@
 // Constants.
 #define _EQ 1
 #define _LT 2
+#define _LE 3  // _LT | _EQ
 #define _GT 4
+#define _GE 5  // _GT | _EQ
 
 // Define the BS VM program. We use a packed string (3 characters per 2 bytes).
-const char p[]="DON'T MODIFY THIS LINE! IT IS REPLACED BY THE BUILD PROCESS!";
+const char p[]="?((((("  // DON'T MODIFY THIS LINE! IT IS REPLACED BY THE BUILD PROCESS!
 
 // Instruction operand configuration (one element per instruction).
 //
@@ -83,8 +85,8 @@ int main(int argc, char** argv){
   m=malloc(1<<20);
 
   // Clear execution state.
-  pc=cc=0;
-  for(i=0;i<255;++i)r[i]=0;
+  pc=1;
+  cc=0;
 
   // Convert the packed string to bytes and store it in the memory.
   v=(sizeof(p)*2)/3;
@@ -93,9 +95,9 @@ int main(int argc, char** argv){
     int c1=p[i*3]-40,    // 6 bits (0-63)
         c2=p[i*3+1]-40,  // 5 bits (0-31)
         c3=p[i*3+2]-40;  // 5 bits (0-31)
-    m[i*2]=(c1<<2)|(c2>>3);
-    m[i*2+1]=((c2&7)<<5)|c3;
-    WriteDebug("(c1,c2,c3)=(%d,%d,%d) -> (%d,%d)",c1,c2,c3,m[i*2],m[i*2+1]);
+    m[i*2+1]=(c1<<2)|(c2>>3);
+    m[i*2+2]=((c2&7)<<5)|c3;
+    WriteDebug("(c1,c2,c3)=(%d,%d,%d) -> (%d,%d)",c1,c2,c3,m[i*2+1],m[i*2+2]);
   }
 
   // Main execution loop.
@@ -215,7 +217,7 @@ int main(int argc, char** argv){
 
     case 12: // BLE
       WriteDebug("BLE %d",o[0]);
-      if(cc&(_LT|_EQ))pc=o[0];
+      if(cc&_LE)pc=o[0];
       break;
 
     case 13: // BGT
@@ -225,7 +227,7 @@ int main(int argc, char** argv){
 
     case 14: // BGE
       WriteDebug("BGE %d",o[0]);
-      if(cc&(_GT|_EQ))pc=o[0];
+      if(cc&_GE)pc=o[0];
       break;
 
     case 15: // CMP

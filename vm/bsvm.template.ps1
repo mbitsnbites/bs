@@ -19,10 +19,10 @@
 #  3. This notice may not be removed or altered from any source distribution.
 # -------------------------------------------------------------------------------------------------
 
-$DebugPreference="DON'T MODIFY THIS LINE! IT IS REPLACED BY THE BUILD PROCESS!"
+$DebugPreference="Continue"  # DON'T MODIFY THIS LINE! IT IS REPLACED BY THE BUILD PROCESS!
 
 # Define the BS VM program. We use a packed string (3 characters per 2 bytes).
-$p="DON'T MODIFY THIS LINE! IT IS REPLACED BY THE BUILD PROCESS!"
+$p="?((((("  # DON'T MODIFY THIS LINE! IT IS REPLACED BY THE BUILD PROCESS!
 
 class VM {
   # Constants.
@@ -72,12 +72,11 @@ class VM {
     $this.m=New-Object Byte[] 1048576  # 1 MiB
 
     # Set the startup execution state.
-    [Int32]$pc=0
+    [Int32]$pc=1
     [Int32]$cc=0
     [Int32[]]$r=New-Object Int32[] 256
 
-    # Convert the packed string to bytes and store it in the RAM,
-    # starting at address $00000000.
+    # Convert the packed string to bytes and store it in the memory.
     $prg_size=($p.Length*2)/3
     Write-Debug("prg_size={0}" -f $prg_size)
     for($i=0;$i -lt ($prg_size/2);$i++){
@@ -86,8 +85,8 @@ class VM {
       $c3=[Byte]($p.Chars($i*3+2))-40  # 5 bits (0-31)
       $b1=($c1 -shl 2) -bor ($c2 -shr 3)
       $b2=(($c2 -band 7) -shl 5) -bor $c3
-      $this.m[$i*2]=$b1
-      $this.m[$i*2+1]=$b2
+      $this.m[$i*2+1]=$b1
+      $this.m[$i*2+2]=$b2
       Write-Debug("(c1,c2,c3)=({0},{1},{2}) -> ({3},{4})" -f $c1,$c2,$c3,$b1,$b2)
     }
 

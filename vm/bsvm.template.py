@@ -26,7 +26,7 @@ import array,codecs,os,struct,sys
 sys.stdout=codecs.getwriter("utf8")(sys.stdout.detach() if sys.version_info[0]>=3 else sys.stdout)
 
 # Define the BS VM program. We use a packed string (3 characters per 2 bytes).
-p="DON'T MODIFY THIS LINE! IT IS REPLACED BY THE BUILD PROCESS!"
+p="?((((("  # DON'T MODIFY THIS LINE! IT IS REPLACED BY THE BUILD PROCESS!
 
 # Constants.
 _EQ=1
@@ -67,11 +67,11 @@ def getS(a):
 m=bytearray(1<<20)
 
 # Clear execution state.
-pc=0
+pc=1
 cc=0
 r=array.array('l',(0 for i in range(0,256)))
 
-# Convert the packed string to bytes and store it in the RAM.
+# Convert the packed string to bytes and store it in the memory.
 v=(len(p)*2)//3
 WriteDebug("prg_size={}".format(v))
 for i in range(0,v//2):
@@ -80,8 +80,8 @@ for i in range(0,v//2):
 	c3=ord(p[i*3+2])-40  # 5 bits (0-31)
 	b1=(c1<<2)|(c2>>3)
 	b2=((c2&7)<<5)|c3
-	m[i*2]=b1
-	m[i*2+1]=b2
+	m[i*2+1]=b1
+	m[i*2+2]=b2
 	WriteDebug("(c1,c2,c3)=({},{},{}) -> ({},{})".format(c1,c2,c3,b1,b2))
 
 # Main execution loop.

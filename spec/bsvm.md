@@ -3,21 +3,48 @@
 The BSVM (BS Virtual Machine) is a simple byte code machine with the following properties:
 
 * 32-bit register machine.
-* There are 256 32-bit registers:
-  * 254 general purpose registers, R1 - R254.
-  * One register is always zero: Z (alias for R0).
-  * One register is the stack pointer: SP (alias of R255).
+* There are 255 32-bit registers and one CC register.
 * Variable length instruction encoding (1-6 bytes per instruction).
 * A flat memory space (containing both program and data).
 * No memory management (memory management is implemented by the byte code).
 
-## Design goals
+# Design goals
 
 The BSVM is designed to be feasible to implement in a variety of different languages and environments, including script languages such as Bash and PowerShell.
 
 Furthermore, a BSVM implementation should be very small, so that it is feasible to include the complete runtime along with your BS scripts (for instance in a Git repository or in a tar archive), without requiring any installation or dependencies.
 
-The BS interpreter is compiled for the BSVM target and can thus run on just about any machine, without requiring any installation.
+The BS interpreter is compiled for the BSVM target and should thus run on just about any machine, without requiring any installation.
+
+# Memory
+
+The memory of the BSVM can be seen as a flat byte array, starting at memory address 1 (some implementations forbid access to memory address zero). All memory locations may be read from and written to.
+
+Most resources that the VM needs access to is located in the memory, including:
+
+* Program code.
+* Constant data.
+* The stack.
+* The heap.
+
+In theory the BSVM could provide up to 2GB of memory, but most BSVM implementations are limited to significantly less than that.
+
+Memory management is not implemented by the BSVM, so it is up to the byte code program to implement memory management (e.g. memory allocation routines).
+
+# Startup
+
+The BSVM is responsible for initializing the execution enviornment as follows:
+
+1. Load the byte code into memory, starting at address 1.
+2. Clear the CC register.
+
+(Not yet implemented: Load the BS script and command line arguments into memory).
+
+After initialization, the BSVM starts program execution at address 1.
+
+**NOTE:** *The contents of general purpose registers and unused parts of the memory are undefined. A program must initialize registers and memory locations before use (failure to do so will result in undefined behavior).*
+
+# Instructions
 
 ## Instruction encoding
 
@@ -39,9 +66,9 @@ Following the first byte are the operands (in order). The number of operands dep
 |---|---|---|---|---|---|---|---|---|
 |   | R<sub>7</sub> | R<sub>6</sub> | R<sub>5</sub> | R<sub>4</sub> | R<sub>3</sub> | R<sub>2</sub> | R<sub>1</sub> | R<sub>0</sub> |
 
-There are 254 general purpose registers that can be addressed by instuctions, called R1-R254.
+There are 253 general purpose registers that can be addressed by instuctions, called R1-R253.
 
-By convention, R0 (a.k.a. Z) is always zero. Additionally there is a stack pointer register, SP (alias for R255), that is implicitly modified by stack manipulation instructions (PUSH, POP, JSR and RTS).
+By convention, Z (alias for R254) is always zero. Additionally there is a stack pointer register, SP (alias for R255), that is implicitly modified by stack manipulation instructions (PUSH, POP, JSR and RTS).
 
 The last operand of an instruction (if any) can have one of the following three operand types (as given by the argument type field, AT, of the first instruction byte):
 
@@ -54,13 +81,17 @@ The last operand of an instruction (if any) can have one of the following three 
 
 32-bit values are encoded in little endian format in memory. This applies both to immediate values that are stored in the program code, and values that are stored and loaded with the STW and LDW instructions.
 
-## Instructions
+## Notation
 
-In the following list, the following notation is used:
+In the instruction list, the following notation is used:
 
-* R*m*, R*n* - A register (R0-R255)
-* X - A generic operand (a register, an immediate value or a memory address)
-* [*addr*] - Contents of memory at location *addr*
+| Notation | Meaning |
+|---|---|
+| R*m*, R*n* | A register (R1-R255) |
+| X | A generic operand (a register, an immediate value or a memory address) |
+| [*addr*] | Contents of memory at location *addr* |
+
+## Instruction list
 
 | OP | Assembler | Operation | Description |
 |---|---|---|---|

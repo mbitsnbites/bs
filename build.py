@@ -47,6 +47,8 @@ _PSVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.ps1"
 _PSVM_OUT = _OUT_DIR / "bsvm.ps1"
 _PYVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.py"
 _PYVM_OUT = _OUT_DIR / "bsvm.py"
+_ZSHVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.zsh"
+_ZSHVM_OUT = _OUT_DIR / "bsvm.zsh"
 
 
 def read_file(name):
@@ -131,11 +133,11 @@ def minify_sh(lines):
     return filtered_lines
 
 
-def gen_bash(code, verbosity_level, debug):
+def gen_sh(template, out, code, verbosity_level, debug):
     if verbosity_level >= 1:
-        print(f"Generating {_BASHVM_OUT}")
+        print(f"Generating {out}")
 
-    old_lines = read_file(_BASHVM_TEMPLATE)
+    old_lines = read_file(template)
     lines = []
     for line in old_lines:
         # Perform template substitutions.
@@ -150,7 +152,7 @@ def gen_bash(code, verbosity_level, debug):
     if not debug:
         lines = minify_sh(lines)
 
-    write_file(_BASHVM_OUT, lines, make_executable=True)
+    write_file(out, lines, make_executable=True)
 
 
 def gen_bat(code, verbosity_level, debug):
@@ -317,11 +319,12 @@ def build(verbosity_level, debug):
     code = compile_file(src_name, verbosity_level)
 
     # Generate the different interpreters.
-    gen_bash(code, verbosity_level, debug)
+    gen_sh(_BASHVM_TEMPLATE, _BASHVM_OUT, code, verbosity_level, debug)
     gen_bat(code, verbosity_level, debug)
     gen_c(code, verbosity_level, debug)
     gen_powershell(code, verbosity_level, debug)
     gen_python(code, verbosity_level, debug)
+    gen_sh(_ZSHVM_TEMPLATE, _ZSHVM_OUT, code, verbosity_level, debug)
 
     # Generate the frontends.
     gen_bat_frontend(verbosity_level, debug)

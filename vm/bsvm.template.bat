@@ -24,7 +24,7 @@ setlocal EnableDelayedExpansion
 
 REM Define the BS VM program. We use a hex string.
 REM DON'T MODIFY THE FOLLOWING TWO LINES! THEY ARE REPLACED BY THE BUILD PROCESS!
-set p=0A7F220135999ABCDEF20931437608132870123BBABABBB28971287912347891679
+set p=5C000000
 set /A ps=20
 
 REM Stuff for handling ASCII conversions.
@@ -79,7 +79,7 @@ REM Note: We leave the memory empty and rely on well-behaving code (i.e. that
 REM does not read undefined values).
 
 REM Clear execution state.
-set /A pc=0
+set /A pc=1
 set /A cc=0
 for /L %%n in (0,1,255) do set /A reg[%%n]=0
 
@@ -92,7 +92,7 @@ set /A XD=13
 set /A XE=14
 set /A XF=15
 call :WriteDebug "prg_size=%ps%"
-set /A a=0
+set /A a=1
 set /A i=0
 :l1
     set "c1=!p:~%i%,1!"

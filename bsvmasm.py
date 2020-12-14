@@ -236,10 +236,10 @@ def extract_parts(line):
 def translate_reg(operand, line_no):
     reg = operand.upper()
     if reg == "Z":
-        reg = "R0"
+        reg = "R254"
     elif reg == "SP":
         reg = "R255"
-    if len(reg) == 0 or reg[0] != "R":
+    if len(reg) < 2 or reg[0] != "R" or reg[1] == "0":
         raise AsmError(line_no, "Bad register: {}".format(operand))
     try:
         reg_no = int(reg[1:])
@@ -450,7 +450,7 @@ def compile_source(lines, verbosity_level, file_name):
                 print(f"Pass {compilation_pass}")
 
             # Set the default start address.
-            addr = 0  # The reset PC address = 0x00000000
+            addr = 1  # The reset PC address = 0x00000001
 
             # Clear code and labels for this pass.
             code = b""
