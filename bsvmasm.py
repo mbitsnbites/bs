@@ -392,6 +392,16 @@ def preprocess(lines, file_dir):
     return result
 
 
+def is_label_assignment(line):
+    # Quick and dirty check.
+    parts = line.split("=")
+    if len(parts) != 2:
+        return False
+    if "\"" in line:
+        return False
+    return True
+
+
 def parse_assigned_label(line, line_no):
     parts_unfiltered = line.split("=")
     parts = []
@@ -432,8 +442,9 @@ def emit_utf8(c):
 def compile_source(lines, verbosity_level, file_name):
     success = False
     labels = {}
+    code_from_last_pass = b""
     try:
-        for compilation_pass in range(1, 10):
+        for compilation_pass in range(1, 100):
             first_pass = compilation_pass == 1
             if verbosity_level >= 1:
                 print(f"Pass {compilation_pass}")
@@ -481,7 +492,7 @@ def compile_source(lines, verbosity_level, file_name):
                     # This is an empty line.
                     pass
 
-                elif line.endswith(":") or "=" in line:
+                elif line.endswith(":") or is_label_assignment(line):
                     # This is a label.
                     if line.endswith(":"):
                         label = line[:-1]
@@ -527,9 +538,8 @@ def compile_source(lines, verbosity_level, file_name):
                         addr_adjust = addr % value
                         if addr_adjust > 0:
                             num_pad_bytes = value - addr_adjust
-                            if not first_pass:
-                                for k in range(num_pad_bytes):
-                                    code += struct.pack("B", 0)
+                            for k in range(num_pad_bytes):
+                                code += struct.pack("B", 0)
                             addr += num_pad_bytes
                             if verbosity_level >= 2:
                                 print(
@@ -557,24 +567,23 @@ def compile_source(lines, verbosity_level, file_name):
                             )
                         for k in range(1, len(directive)):
                             addr += val_size
-                            if not first_pass:
-                                try:
-                                    value = translate_addr_or_number(
-                                        directive[k],
-                                        labels,
-                                        scope_label,
-                                        line_no,
-                                        first_pass,
-                                    )
-                                except ValueError:
-                                    raise AsmError(
-                                        line_no,
-                                        "Invalid integer: {}".format(directive[k]),
-                                    )
-                                # Convert value to unsigned.
-                                if value < 0:
-                                    value = (1 << num_bits) + value
-                                code += struct.pack(val_type, value)
+                            try:
+                                value = translate_addr_or_number(
+                                    directive[k],
+                                    labels,
+                                    scope_label,
+                                    line_no,
+                                    first_pass,
+                                )
+                            except ValueError:
+                                raise AsmError(
+                                    line_no,
+                                    "Invalid integer: {}".format(directive[k]),
+                                )
+                            # Convert value to unsigned.
+                            if value < 0:
+                                value = (1 << num_bits) + value
+                            code += struct.pack(val_type, value)
 
                     elif directive[0] in [".space", ".zero"]:
                         if len(directive) != 2:
@@ -588,9 +597,8 @@ def compile_source(lines, verbosity_level, file_name):
                                 line_no, "Invalid size: {}".format(directive[1])
                             )
                         addr += size
-                        if not first_pass:
-                            for k in range(0, size):
-                                code += struct.pack("b", 0)
+                        for k in range(0, size):
+                            code += struct.pack("b", 0)
 
                     elif directive[0] in [".ascii", ".asciz", ".string"]:
                         raw_text = line[len(directive[0]) :].strip()
@@ -649,15 +657,13 @@ def compile_source(lines, verbosity_level, file_name):
                             str_code += struct.pack("B", 0)
 
                         if directive[0] == ".string":
-                            if not first_pass:
-                                str_code = struct.pack("<I", len(str_code)) + str_code
                             addr += 4
+                            str_code = struct.pack("<I", len(str_code)) + str_code
 
-                        if not first_pass:
-                            code += str_code
+                        code += str_code
 
                     elif directive[0] in [".text", ".data", ".global", ".globl"]:
-                        if verbosity_level >= 1 and not first_pass:
+                        if verbosity_level >= 1:
                             print(
                                 "{}:{}: WARNING: Ignoring directive: {}".format(
                                     file_name, line_no, directive[0]
@@ -710,22 +716,23 @@ def compile_source(lines, verbosity_level, file_name):
                             msg += "\n  Candidate: {}".format(e)
                         raise AsmError(line_no, msg)
 
-                    if not first_pass:
-                        if verbosity_level >= 2:
-                            msg = format(addr, "08x") + ": "
-                            for b in instr:
-                                msg += format(b, "02x") + " "
-                            msg += "   " * (6 - len(instr))
-                            print(f"{msg} <= {operation}")
-
+                    if verbosity_level >= 2:
+                        msg = format(addr, "08x") + ": "
                         for b in instr:
-                            code += struct.pack("<B", b)
+                            msg += format(b, "02x") + " "
+                        msg += "   " * (6 - len(instr))
+                        print(f"{msg} <= {operation}")
+
+                    for b in instr:
+                        code += struct.pack("<B", b)
 
                     addr += len(instr)
 
             # Do we have to do another pass?
-            if first_pass or new_labels != labels:
+            # We keep going until all labels have stabilized.
+            if first_pass or new_labels != labels or code != code_from_last_pass:
                 labels = new_labels
+                code_from_last_pass = code
             else:
                 success = True
                 break
