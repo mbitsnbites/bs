@@ -23,9 +23,14 @@
     .include    lib/crt0.s
     .include    lib/mem.s
     .include    lib/string.s
+    .include    lib/parser.s
 
 main:
     jsr     mem_init
+
+    ; Test the parser.
+    mov     r1, #bs_source
+    jsr     parse_program
 
     ; Allocate three blocks.
     mov     r1, 1000
@@ -94,6 +99,9 @@ loop_done_text:
 command:
     .string "cmake --version"
 
+; Test BS program.
+bs_source:
+    .asciz  "foo = 123\nif foo > 7\n  apa = \"Hello world!\"\n  println(apa)\nend"
 
 ; -------------------------------------------------------------------------------------------------
 ; The end of the program is the start of the working memory.
