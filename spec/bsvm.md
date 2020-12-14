@@ -56,7 +56,13 @@ The last operand of an instruction (if any) can have one of the following three 
 
 ## Instructions
 
-| OP | Form | Operation | Description |
+In the following list, the following notation is used:
+
+* R*m*, R*n* - A register (R0-R255)
+* X - A generic operand (a register, an immediate value or a memory address)
+* [*addr*] - Contents of memory address *addr*
+
+| OP | Assembler | Operation | Description |
 |---|---|---|---|
 | 1 | MOV R*m*, X | R*m* ← X | Move |
 | 2 | LDB R*m*, R*n*, X | R*m* ← [R*n* + X] | Load unsigned byte |
@@ -64,8 +70,28 @@ The last operand of an instruction (if any) can have one of the following three 
 | 4 | STB R*m*, R*n*, X | [R*n* + X] ← R*m* | Store byte (lowest 8 bits of R*m*) |
 | 5 | STW R*m*, R*n*, X | [R*n* + X] ← R*m* | Store word |
 | 6 | JMP X | PC ← X | Jump |
-| 7 | JSR X | [SP] ← PC<br>SP ← SP - 4<br>PC ← X | Jump to subroutine |
-| 8 | RTS | SP ← SP + 4<br>PC ← [SP] | Return from subroutine |
-| ... | ... | ... | ... |
-
-TBD
+| 7 | JSR X | SP ← SP - 4<br>[SP] ← PC<br>PC ← X | Jump to subroutine |
+| 8 | RTS | PC ← [SP]<br>SP ← SP + 4 | Return from subroutine |
+| 9 | BEQ X | PC ← X if CC.EQ=1 | Branch if EQual |
+| 10 | BNE X | PC ← X if CC.EQ=0 | Branch if Not Equal |
+| 11 | BLT X | PC ← X if CC.LT=1 | Branch if Less Than |
+| 12 | BLE X | PC ← X if CC.LT=1 or CC.EQ=1 | Branch if Less than or Equal |
+| 13 | BGT X | PC ← X if CC.GT=1 | Branch if Greater Than |
+| 14 | BGE X | PC ← X if CC.GT=1 or CC.EQ=1 | Branch if Greater than or Equal |
+| 15 | CMP R*m*, X | CC ← compare(R*m*, X) | Compare |
+| 16 | PUSH R*m* | SP ← SP - 4<br>[SP] ← R*m* | Push register value onto the stack |
+| 17 | POP R*m* | R*m* ← [SP]<br>SP ← SP + 4 | Pop register value from the stack |
+| 18 | ADD R*m*, X | R*m* ← R*m* + X | Add |
+| 19 | SUB R*m*, X | R*m* ← R*m* - X | Subtract |
+| 20 | MUL R*m*, X | R*m* ← R*m* * X | Multiply |
+| 21 | DIV R*m*, X | R*m* ← R*m* / X | Divide |
+| 22 | MOD R*m*, X | R*m* ← R*m* % X | Modulo |
+| 23 | AND R*m*, X | R*m* ← R*m* & X | Bitwise and |
+| 24 | OR R*m*, X | R*m* ← R*m* \| X | Bitwise or |
+| 25 | XOR R*m*, X | R*m* ← R*m* ^ X | Bitwise exclusive or |
+| 26 | SHL R*m*, X | R*m* ← R*m* << X | Shift left |
+| 27 | SHR R*m*, X | R*m* ← R*m* >> X | Arithmetic shift right |
+| 28 | EXIT X | exit(X) | Exit program |
+| 29 | PRINTLN X | println(X) | Print string at address X, with new line |
+| 30 | PRINT X | print(X) | Print string at address X |
+| 31 | RUN X | run(X) | Run system command given by string at address X |
