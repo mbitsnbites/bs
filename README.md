@@ -1,3 +1,3 @@
 # BS
 
-Stay tuned... This may become something awsome, time permitting.
+Stay tuned... This may become something awesome, time permitting.
