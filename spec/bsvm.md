@@ -8,12 +8,12 @@ The BSVM (BS Virtual Machine) is a simple byte code machine with the following p
   * One register is always zero: Z (alias for R0).
   * One register is the stack pointer: SP (alias of R255).
 * Variable length instruction encoding (1-6 bytes per instruction).
-* A flat memory space containing (both program and data).
+* A flat memory space (containing both program and data).
 * No memory management (memory management is implemented by the byte code).
 
 ## Design goals
 
-The BSVM is designed to be feasible to implement in a variety of different languages and environments, including classic script languages such as Bash and BAT. 
+The BSVM is designed to be feasible to implement in a variety of different languages and environments, including script languages such as Bash and PowerShell.
 
 Furthermore, a BSVM implementation should be very small, so that it is feasible to include the complete runtime along with your BS scripts (for instance in a Git repository or in a tar archive), without requiring any installation or dependencies.
 
@@ -25,7 +25,7 @@ The instruction format is variable length.
 
 The operation is given by the first byte of the instruction. When an operation has several possible operand formats, this is indicated by the two most significant bits of the first byte:
 
-Operation identifyer byte:
+Operation identifier byte:
 
 | Bit | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
 |---|---|---|---|---|---|---|---|---|
@@ -60,11 +60,11 @@ In the following list, the following notation is used:
 
 * R*m*, R*n* - A register (R0-R255)
 * X - A generic operand (a register, an immediate value or a memory address)
-* [*addr*] - Contents of memory address *addr*
+* [*addr*] - Contents of memory at location *addr*
 
 | OP | Assembler | Operation | Description |
 |---|---|---|---|
-| 1 | MOV R*m*, X | R*m* ← X | Move |
+| 1 | MOV R*m*, X | R*m* ← X | Move value to register |
 | 2 | LDB R*m*, R*n*, X | R*m* ← [R*n* + X] | Load unsigned byte |
 | 3 | LDW R*m*, R*n*, X | R*m* ← [R*n* + X] | Load word |
 | 4 | STB R*m*, R*n*, X | [R*n* + X] ← R*m* | Store byte (lowest 8 bits of R*m*) |
