@@ -116,24 +116,22 @@ int main(int argc, char** argv){
 
     // Read the operands.
     int o[4];
-    k=0;
-    n=nout[op];
-    for(;k<n;++k){
+    k=nout[op];
+    if(k){
       // Get register number (0-255)
-      o[k]=m[pc++];
+      o[0]=m[pc++];
     }
     n=k+ninr[op];
     for(;k<n;++k){
       // Get register value
       o[k]=r[m[pc++]];
     }
-    n=k+ninx[op];
-    for(;k<n;++k){
+    if(ninx[op]){
       if(at==3){
         // 32-bit immediate.
         v=getI(pc);
         pc+=4;
-      } else {
+      }else{
         // Arg types 0-2 use a single byte.
         v=m[pc];
         ++pc;
@@ -141,7 +139,7 @@ int main(int argc, char** argv){
         if(at==0){
           // Register value.
           v=r[v];
-        } else {
+        }else{
           // Convert unsigned to signed byte (-128..127).
           if(v>127)v-=256;
 
@@ -233,7 +231,7 @@ int main(int argc, char** argv){
     case 15: // CMP
       WriteDebug("CMP %d, %d",o[0],o[1]);
       cc=0;
-      if(o[0]==o[1])cc|=_EQ;
+      if(o[0]==o[1])cc=_EQ;
       if(o[0]<o[1])cc|=_LT;
       if(o[0]>o[1])cc|=_GT;
       break;

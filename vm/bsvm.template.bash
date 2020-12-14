@@ -42,8 +42,6 @@ ninr=(0 0 1 1 2 2 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
 ninx=(0 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1)
 
 # Helper functions.
-ord(){ LC_CTYPE=C printf '%d' "'$1"; }
-
 WriteDebug(){ >&2 echo "DEBUG: $1"; }
 
 getS(){
@@ -77,9 +75,15 @@ for i in $(seq 0 255);do r[$i]=0;done
 v=$((($(echo "$p"|awk '{print length}')*2)/3))
 WriteDebug "prg_size=$v"
 for i in $(seq 0 $(((v-1)/2)));do
-  c1=$(($(ord "${p:$((i*3)):1}")-40))   # 6 bits (0-63)
-  c2=$(($(ord "${p:$((i*3+1)):1}")-40)) # 5 bits (0-31)
-  c3=$(($(ord "${p:$((i*3+2)):1}")-40)) # 5 bits (0-31)
+  # Convert three consecutive characters to an array of ASCII codes.
+  x="${p:$((i*3)):3}"
+  LC_CTYPE=C printf -v x '%d %d %d' "'${x:0:1}" "'${x:1:1}" "'${x:2:1}"
+  x=($x)
+
+  # Convert the three ASCII codes to two full-range (0-255) bytes.
+  c1=$((${x[0]}-40))   # 6 bits (0-63)
+  c2=$((${x[1]}-40))   # 5 bits (0-31)
+  c3=$((${x[2]}-40))   # 5 bits (0-31)
   b1=$(((c1<<2)|(c2>>3)))
   b2=$((((c2&7)<<5)|c3))
   m[$((i*2))]=$b1

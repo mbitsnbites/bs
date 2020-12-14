@@ -232,11 +232,11 @@ def gen_powershell(code, verbosity_level, debug):
     lines = []
     for line in old_lines:
         # Perform template substitutions.
-        if line.startswith("$prg = "):
+        if line.startswith("$p="):
             prg_str = bin2str.convert(code, use_hex=False)
-            line = f"$prg = '{prg_str}'\n"
+            line = f"$p='{prg_str}'\n"
         elif line.startswith("$DebugPreference"):
-            line = '$DebugPreference = "Continue"\n' if debug else ""
+            line = '$DebugPreference="Continue"\n' if debug else ""
 
         # Remove debug code in non-debug builds.
         if debug or (not line.lstrip().startswith("Write-Debug")):
