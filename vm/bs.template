@@ -84,9 +84,10 @@ for x in pwsh powershell; do
   c="$(command -v $x)"; if [ -n "$c" ]; then "$c" -noprofile -executionpolicy bypass -file "$d/bsvm.ps1" "$@"; exit $?; fi
 done
 
-# Last resort: Use a shell script interpreter.
+# Last resort: Use a shell script interpreter. The bash script has been tailored to work with both
+# bash and zsh. Since zsh seems to be the faster of the two, use it when it's available.
+c="$(command -v zsh)"; if [ -n "$c" ]; then "$c" "$d/bsvm.bash" "$@"; exit $?; fi
 c="$(command -v bash)"; if [ -n "$c" ]; then "$c" "$d/bsvm.bash" "$@"; exit $?; fi
-c="$(command -v zsh)"; if [ -n "$c" ]; then "$c" "$d/bsvm.zsh" "$@"; exit $?; fi
 
 # If we got this far, we have no working VM implementation for this system.
 echo "***ERROR: No BS VM found"

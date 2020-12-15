@@ -47,8 +47,6 @@ _PSVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.ps1"
 _PSVM_OUT = _OUT_DIR / "bsvm.ps1"
 _PYVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.py"
 _PYVM_OUT = _OUT_DIR / "bsvm.py"
-_ZSHVM_TEMPLATE = _REPO_ROOT / "vm/bsvm.template.zsh"
-_ZSHVM_OUT = _OUT_DIR / "bsvm.zsh"
 
 
 def read_file(name):
@@ -324,7 +322,6 @@ def build(verbosity_level, debug):
     gen_c(code, verbosity_level, debug)
     gen_powershell(code, verbosity_level, debug)
     gen_python(code, verbosity_level, debug)
-    gen_sh(_ZSHVM_TEMPLATE, _ZSHVM_OUT, code, verbosity_level, debug)
 
     # Generate the frontends.
     gen_bat_frontend(verbosity_level, debug)

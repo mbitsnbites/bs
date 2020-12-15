@@ -22,6 +22,9 @@
 # Define the BS VM program. We use a packed string (3 characters per 2 bytes).
 p='?((((('  # DON'T MODIFY THIS LINE! IT IS REPLACED BY THE BUILD PROCESS!
 
+# Detect if we're running on Bash or zsh (we use $_B here and there to handle differences).
+[ -n "$BASH" ] && _B=0
+
 # Constants.
 _EQ=1
 _LT=2
@@ -35,11 +38,11 @@ _GE=5 # _GT | _EQ
 #  * ninr - Number of input register operands.
 #  * ninx - Number of "final" input operands (any operand kind).
 #
-# OP:                     1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
-#     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-nout=(0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0)
-ninr=(0 0 1 1 2 2 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
-ninx=(0 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1)
+# OP:                       1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+#     (0) 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+nout=($_B 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0)
+ninr=($_B 0 1 1 2 2 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
+ninx=($_B 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1)
 
 # Helper functions.
 WriteDebug(){ >&2 echo "DEBUG: $1"; }
@@ -76,12 +79,12 @@ for i in $(seq 0 $(((v-1)/2)));do
   # Convert three consecutive characters to an array of ASCII codes.
   x="${p:$((i*3)):3}"
   LC_CTYPE=C printf -v x '%d %d %d' "'${x:0:1}" "'${x:1:1}" "'${x:2:1}"
-  x=($x)
+  [ -n "$_B" ] && x=(0 $x) || x=("${(s: :)x}")
 
   # Convert the three ASCII codes to two full-range (0-255) bytes.
-  c1=$((${x[0]}-40))   # 6 bits (0-63)
-  c2=$((${x[1]}-40))   # 5 bits (0-31)
-  c3=$((${x[2]}-40))   # 5 bits (0-31)
+  c1=$((${x[1]}-40))   # 6 bits (0-63)
+  c2=$((${x[2]}-40))   # 5 bits (0-31)
+  c3=$((${x[3]}-40))   # 5 bits (0-31)
   b1=$(((c1<<2)|(c2>>3)))
   b2=$((((c2&7)<<5)|c3))
   m[$((i*2+1))]=$b1
@@ -107,7 +110,7 @@ while [ $running -eq 1 ];do
   WriteDebug "PC=$pc0 CC=$cc OP=$op0 OP*=$op AT=$at"
 
   # Read the operands.
-  o=()
+  o=($_B)
   if [ ${nout[$op]} = 1 ];then
     # Get register number (0-255)
     o+=(${m[$pc]})
@@ -150,34 +153,34 @@ while [ $running -eq 1 ];do
   # Execute the instruction.
   case $op in
     1) # MOV
-      WriteDebug "MOV R${o[0]}, ${o[1]}"
-      r[${o[0]}]=${o[1]}
+      WriteDebug "MOV R${o[1]}, ${o[2]}"
+      r[${o[1]}]=${o[2]}
       ;;
 
     2) # LDB
-      WriteDebug "LDB R${o[0]}, ${o[1]}, ${o[2]}"
-      r[${o[0]}]=${m[$((${o[1]}+${o[2]}))]}
+      WriteDebug "LDB R${o[1]}, ${o[2]}, ${o[3]}"
+      r[${o[1]}]=${m[$((${o[2]}+${o[3]}))]}
       ;;
 
     3) # LDW
-      WriteDebug "LDW R${o[0]}, ${o[1]}, ${o[2]}"
-      a=$((${o[1]}+${o[2]}))
+      WriteDebug "LDW R${o[1]}, ${o[2]}, ${o[3]}"
+      a=$((${o[2]}+${o[3]}))
       b0=${m[$a]}
       b1=${m[$((a+1))]}
       b2=${m[$((a+2))]}
       b3=${m[$((a+3))]}
-      r[${o[0]}]=$((b0|(b1<<8)|(b2<<16)|(b3<<24)))
+      r[${o[1]}]=$((b0|(b1<<8)|(b2<<16)|(b3<<24)))
       ;;
 
     4) # STB
-      WriteDebug "STB ${o[0]}, ${o[1]}, ${o[2]}"
-      m[$((${o[1]}+${o[2]}))]=$((${o[0]}&255))
+      WriteDebug "STB ${o[1]}, ${o[2]}, ${o[3]}"
+      m[$((${o[2]}+${o[3]}))]=$((${o[1]}&255))
       ;;
 
     5) # STW
-      WriteDebug "STW ${o[0]}, ${o[1]}, ${o[2]}"
-      a=$((${o[1]}+${o[2]}))
-      v=${o[0]}
+      WriteDebug "STW ${o[1]}, ${o[2]}, ${o[3]}"
+      a=$((${o[2]}+${o[3]}))
+      v=${o[1]}
       m[$a]=$((v&255))
       m[$((a+1))]=$(((v>>8)&255))
       m[$((a+2))]=$(((v>>16)&255))
@@ -185,19 +188,19 @@ while [ $running -eq 1 ];do
       ;;
 
     6) # JMP
-      WriteDebug "JMP ${o[0]}"
-      pc=${o[0]}
+      WriteDebug "JMP ${o[1]}"
+      pc=${o[1]}
       ;;
 
     7) # JSR
-      WriteDebug "JSR ${o[0]}"
+      WriteDebug "JSR ${o[1]}"
       r[255]=$((${r[255]}-4)) # Pre-decrement SP
       a=${r[255]}
       m[$a]=$((pc&255))
       m[$((a+1))]=$(((pc>>8)&255))
       m[$((a+2))]=$(((pc>>16)&255))
       m[$((a+3))]=$(((pc>>24)&255))
-      pc=${o[0]}
+      pc=${o[1]}
       ;;
 
     8) # RTS
@@ -212,48 +215,48 @@ while [ $running -eq 1 ];do
       ;;
 
     9) # BEQ
-      WriteDebug "BEQ ${o[0]}"
-      [ $((cc&_EQ)) -ne 0 ] && pc=${o[0]}
+      WriteDebug "BEQ ${o[1]}"
+      [ $((cc&_EQ)) -ne 0 ] && pc=${o[1]}
       ;;
 
     10) # BNE
-      WriteDebug "BNE ${o[0]}"
-      [ $((cc&_EQ)) -eq 0 ] && pc=${o[0]}
+      WriteDebug "BNE ${o[1]}"
+      [ $((cc&_EQ)) -eq 0 ] && pc=${o[1]}
       ;;
 
     11) # BLT
-      WriteDebug "BLT ${o[0]}"
-      [ $((cc&_LT)) -ne 0 ] && pc=${o[0]}
+      WriteDebug "BLT ${o[1]}"
+      [ $((cc&_LT)) -ne 0 ] && pc=${o[1]}
       ;;
 
     12) # BLE
-      WriteDebug "BLE ${o[0]}"
-      [ $((cc&_LE)) -ne 0 ] && pc=${o[0]}
+      WriteDebug "BLE ${o[1]}"
+      [ $((cc&_LE)) -ne 0 ] && pc=${o[1]}
       ;;
 
     13) # BGT
-      WriteDebug "BGT ${o[0]}"
-      [ $((cc&_GT)) -ne 0 ] && pc=${o[0]}
+      WriteDebug "BGT ${o[1]}"
+      [ $((cc&_GT)) -ne 0 ] && pc=${o[1]}
       ;;
 
     14) # BGE
-      WriteDebug "BGE ${o[0]}"
-      [ $((cc&_GE)) -ne 0 ] && pc=${o[0]}
+      WriteDebug "BGE ${o[1]}"
+      [ $((cc&_GE)) -ne 0 ] && pc=${o[1]}
       ;;
 
     15) # CMP
-      WriteDebug "CMP ${o[0]}, ${o[1]}"
+      WriteDebug "CMP ${o[1]}, ${o[2]}"
       cc=0
-      [ ${o[0]} -eq ${o[1]} ] && cc=_EQ
-      [ ${o[0]} -lt ${o[1]} ] && cc=$((cc|_LT))
-      [ ${o[0]} -gt ${o[1]} ] && cc=$((cc|_GT))
+      [ ${o[1]} -eq ${o[2]} ] && cc=_EQ
+      [ ${o[1]} -lt ${o[2]} ] && cc=$((cc|_LT))
+      [ ${o[1]} -gt ${o[2]} ] && cc=$((cc|_GT))
       ;;
 
     16) # PUSH
-      WriteDebug "PUSH ${o[0]}"
+      WriteDebug "PUSH ${o[1]}"
       r[255]=$((${r[255]}-4)) # Pre-decrement SP
       a=${r[255]}
-      v=${o[0]}
+      v=${o[1]}
       m[$a]=$((v&255))
       m[$((a+1))]=$(((v>>8)&255))
       m[$((a+2))]=$(((v>>16)&255))
@@ -261,87 +264,87 @@ while [ $running -eq 1 ];do
       ;;
 
     17) # POP
-      WriteDebug "POP R${o[0]}"
+      WriteDebug "POP R${o[1]}"
       a=${r[255]}
       b0=${m[$a]}
       b1=${m[$((a+1))]}
       b2=${m[$((a+2))]}
       b3=${m[$((a+3))]}
-      r[${o[0]}]=$((b0|(b1<<8)|(b2<<16)|(b3<<24)))
+      r[${o[1]}]=$((b0|(b1<<8)|(b2<<16)|(b3<<24)))
       r[255]=$((${r[255]}+4)) # Post-increment SP
       ;;
 
     18) # ADD
-      WriteDebug "ADD R${o[0]}, ${o[1]}"
-      r[${o[0]}]=$((${r[${o[0]}]}+${o[1]}))
+      WriteDebug "ADD R${o[1]}, ${o[2]}"
+      r[${o[1]}]=$((${r[${o[1]}]}+${o[2]}))
       ;;
 
     19) # SUB
-      WriteDebug "SUB R${o[0]}, ${o[1]}"
-      r[${o[0]}]=$((${r[${o[0]}]}-${o[1]}))
+      WriteDebug "SUB R${o[1]}, ${o[2]}"
+      r[${o[1]}]=$((${r[${o[1]}]}-${o[2]}))
       ;;
 
     20) # MUL
-      WriteDebug "MUL R${o[0]}, ${o[1]}"
-      r[${o[0]}]=$((${r[${o[0]}]}*${o[1]}))
+      WriteDebug "MUL R${o[1]}, ${o[2]}"
+      r[${o[1]}]=$((${r[${o[1]}]}*${o[2]}))
       ;;
 
     21) # DIV
-      WriteDebug "DIV R${o[0]}, ${o[1]}"
-      r[${o[0]}]=$((${r[${o[0]}]}/${o[1]}))
+      WriteDebug "DIV R${o[1]}, ${o[2]}"
+      r[${o[1]}]=$((${r[${o[1]}]}/${o[2]}))
       ;;
 
     22) # MOD
-      WriteDebug "MOD R${o[0]}, ${o[1]}"
-      r[${o[0]}]=$((${r[${o[0]}]}%${o[1]}))
+      WriteDebug "MOD R${o[1]}, ${o[2]}"
+      r[${o[1]}]=$((${r[${o[1]}]}%${o[2]}))
       ;;
 
     23) # AND
-      WriteDebug "AND R${o[0]}, ${o[1]}"
-      r[${o[0]}]=$((${r[${o[0]}]}&${o[1]}))
+      WriteDebug "AND R${o[1]}, ${o[2]}"
+      r[${o[1]}]=$((${r[${o[1]}]}&${o[2]}))
       ;;
 
     24) # OR
-      WriteDebug "OR R${o[0]}, ${o[1]}"
-      r[${o[0]}]=$((${r[${o[0]}]}|${o[1]}))
+      WriteDebug "OR R${o[1]}, ${o[2]}"
+      r[${o[1]}]=$((${r[${o[1]}]}|${o[2]}))
       ;;
 
     25) # XOR
-      WriteDebug "XOR R${o[0]}, ${o[1]}"
-      r[${o[0]}]=$((${r[${o[0]}]}^${o[1]}))
+      WriteDebug "XOR R${o[1]}, ${o[2]}"
+      r[${o[1]}]=$((${r[${o[1]}]}^${o[2]}))
       ;;
 
     26) # SHL
-      WriteDebug "SHL R${o[0]}, ${o[1]}"
-      r[${o[0]}]=$((${r[${o[0]}]}<<${o[1]}))
+      WriteDebug "SHL R${o[1]}, ${o[2]}"
+      r[${o[1]}]=$((${r[${o[1]}]}<<${o[2]}))
       ;;
 
     27) # SHR
-      WriteDebug "SHR R${o[0]}, ${o[1]}"
-      r[${o[0]}]=$((${r[${o[0]}]}>>${o[1]}))
+      WriteDebug "SHR R${o[1]}, ${o[2]}"
+      r[${o[1]}]=$((${r[${o[1]}]}>>${o[2]}))
       ;;
 
     28) # EXIT
-      WriteDebug "EXIT ${o[0]}"
-      exit_code=${o[0]}
+      WriteDebug "EXIT ${o[1]}"
+      exit_code=${o[1]}
       running=0
       ;;
 
     29) # PRINTLN
-      getS ${o[0]}
-      WriteDebug "PRINTLN ${o[0]} ($str)"
+      getS ${o[1]}
+      WriteDebug "PRINTLN ${o[1]} ($str)"
       printf "$str\n"
       ;;
 
     30) # PRINT
-      getS ${o[0]}
-      WriteDebug "PRINT ${o[0]} ($str)"
+      getS ${o[1]}
+      WriteDebug "PRINT ${o[1]} ($str)"
       printf "$str"
       ;;
 
     31) # RUN
-      getS ${o[0]}
-      WriteDebug "RUN ${o[0]} ($str)"
+      getS ${o[1]}
+      WriteDebug "RUN ${o[1]} ($str)"
       eval "$str"
       ;;
 
