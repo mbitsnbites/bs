@@ -77,37 +77,51 @@ parse_next_line:
 ; -------------------------------------------------------------------------------------------------
 
 parse_err_invalid_name:
-    mov     r1, #1$
+    mov     r1, #parse_err_invalid_name_str
+    mov     r2, #parse_err_invalid_name_str_size
     jmp     parse_error
-1$:
-    .string "Invalid name"
+
+parse_err_invalid_name_str:
+    .ascii  "Invalid name"
+    parse_err_invalid_name_str_size = *-parse_err_invalid_name_str
 
 parse_err_not_implemented:
-    mov     r1, #1$
+    mov     r1, #parse_err_not_implemented_str
+    mov     r2, #parse_err_not_implemented_str_size
     jmp     parse_error
-1$:
-    .string "Not implemented"
+
+parse_err_not_implemented_str:
+    .ascii  "Not implemented"
+    parse_err_not_implemented_str_size = *-parse_err_not_implemented_str
 
 parse_err_premature_end:
-    mov     r1, #1$
+    mov     r1, #parse_err_premature_end_str
+    mov     r2, #parse_err_premature_end_str_size
     jmp     parse_error
-1$:
-    .string "Premature end of file"
+
+parse_err_premature_end_str:
+    .ascii  "Premature end of file"
+    parse_err_premature_end_str_size = *-parse_err_premature_end_str
 
 parse_err_syntax_error:
-    mov     r1, #1$
+    mov     r1, #parse_err_syntax_error_str
+    mov     r2, #parse_err_syntax_error_str_size
     jmp     parse_error
-1$:
-    .string "Syntax error"
+
+parse_err_syntax_error_str:
+    .ascii  "Syntax error"
+    parse_err_syntax_error_str_size = *-parse_err_syntax_error_str
 
 parse_error:
-    print   #1$
-    println r1
+    mov     r50, #parse_error_str
+    print   r50, #parse_error_str_size
+    println r1, r2
     mov     r1, #1
     rts
 
-1$:
-    .string "*** Error: "
+parse_error_str:
+    .ascii "*** Error: "
+    parse_error_str_size = *-parse_error_str
 
 
 ; -------------------------------------------------------------------------------------------------

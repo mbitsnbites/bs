@@ -192,22 +192,22 @@ _OPCODES = {
         [0xdc, _IMM32],
     ]},
     "PRINTLN": {"descrs": [
-        [0x1d, _REG],
-        [0x5d, _IMM8],
-        [0x9d, _PCREL8],
-        [0xdd, _IMM32],
+        [0x1d, _REG, _REG],
+        [0x5d, _REG, _IMM8],
+        [0x9d, _REG, _PCREL8],
+        [0xdd, _REG, _IMM32],
     ]},
     "PRINT": {"descrs": [
-        [0x1e, _REG],
-        [0x5e, _IMM8],
-        [0x9e, _PCREL8],
-        [0xde, _IMM32],
+        [0x1e, _REG, _REG],
+        [0x5e, _REG, _IMM8],
+        [0x9e, _REG, _PCREL8],
+        [0xde, _REG, _IMM32],
     ]},
     "RUN": {"descrs": [
-        [0x1f, _REG],
-        [0x5f, _IMM8],
-        [0x9f, _PCREL8],
-        [0xdf, _IMM32],
+        [0x1f, _REG, _REG],
+        [0x5f, _REG, _IMM8],
+        [0x9f, _REG, _PCREL8],
+        [0xdf, _REG, _IMM32],
     ]},
 }
 # fmt: on
@@ -263,12 +263,18 @@ def mangle_local_label(label, scope_label):
     return "{}@{}".format(scope_label, label[:-1])
 
 
-def translate_addr_or_number(string, labels, scope_label, line_no, first_pass):
+def translate_addr_or_number(
+    string, labels, scope_label, line_no, first_pass, current_addr
+):
     # Numeric literal?
     try:
         return parse_integer(string)
     except ValueError:
         pass
+
+    # Current position?
+    if string == "*":
+        return current_addr
 
     # Label?
     # TODO(m): Add support for numerical offsets and relative +/- deltas.
@@ -284,12 +290,42 @@ def translate_addr_or_number(string, labels, scope_label, line_no, first_pass):
         raise AsmError(line_no, "Bad label: {}".format(string))
 
 
-def translate_imm(operand, operand_type, labels, scope_label, line_no, first_pass):
+def translate_numeric_expression(
+    string, labels, scope_label, line_no, first_pass, current_addr
+):
+    # This is a very dodgy arithmetic expression parser... The most important use-cases that we
+    # want to support are "*-label" and "a+b+c".
+    result = 0
+    addends = [x.strip() for x in string.split("+")]
+    for addend in addends:
+        subtrahends = [x.strip() for x in addend.split("-")]
+        mode = "add"
+        for x in subtrahends:
+            if x:
+                value = translate_addr_or_number(
+                    x, labels, scope_label, line_no, first_pass, current_addr
+                )
+            else:
+                value = 0
+            if mode == "add":
+                result += value
+            else:
+                result -= value
+            mode = "sub"
+
+    return result
+
+
+def translate_imm(
+    operand, operand_type, labels, scope_label, line_no, first_pass, current_addr
+):
     # Drop the optional "#" prefix.
     if operand[0] == "#":
         operand = operand[1:]
 
-    value = translate_addr_or_number(operand, labels, scope_label, line_no, first_pass)
+    value = translate_numeric_expression(
+        operand, labels, scope_label, line_no, first_pass, current_addr
+    )
 
     value_bits = {_IMM8: 8, _IMM32: 32}[operand_type]
     value_min = {_IMM8: -(1 << 7), _IMM32: -(1 << 31)}[operand_type]
@@ -318,7 +354,7 @@ def translate_imm(operand, operand_type, labels, scope_label, line_no, first_pas
 
 
 def translate_pcrel(
-    operand, operand_type, pc, labels, scope_label, line_no, first_pass
+    operand, operand_type, pc, labels, scope_label, line_no, first_pass, current_addr
 ):
     if first_pass:
         return [0]
@@ -327,8 +363,8 @@ def translate_pcrel(
     if operand[0] == "#":
         operand = operand[1:]
 
-    target_address = translate_addr_or_number(
-        operand, labels, scope_label, line_no, False
+    target_address = translate_numeric_expression(
+        operand, labels, scope_label, line_no, False, current_addr
     )
     offset = target_address - pc
     if offset < -128 or offset >= 128:
@@ -337,7 +373,15 @@ def translate_pcrel(
 
 
 def translate_operation(
-    operation, mnemonic, descr, pc, line_no, labels, scope_label, first_pass
+    operation,
+    mnemonic,
+    descr,
+    pc,
+    line_no,
+    labels,
+    scope_label,
+    first_pass,
+    current_addr,
 ):
     if len(operation) != len(descr):
         raise AsmError(
@@ -352,7 +396,13 @@ def translate_operation(
         elif operand_type in [_IMM8, _IMM32]:
             instr.extend(
                 translate_imm(
-                    operand, operand_type, labels, scope_label, line_no, first_pass
+                    operand,
+                    operand_type,
+                    labels,
+                    scope_label,
+                    line_no,
+                    first_pass,
+                    current_addr,
                 )
             )
         elif operand_type == _PCREL8:
@@ -365,6 +415,7 @@ def translate_operation(
                     scope_label,
                     line_no,
                     first_pass,
+                    current_addr,
                 )
             )
 
@@ -397,12 +448,12 @@ def is_label_assignment(line):
     parts = line.split("=")
     if len(parts) != 2:
         return False
-    if "\"" in line:
+    if '"' in line:
         return False
     return True
 
 
-def parse_assigned_label(line, line_no):
+def parse_assigned_label(line, labels, scope_label, line_no, first_pass, current_addr):
     parts_unfiltered = line.split("=")
     parts = []
     for part in parts_unfiltered:
@@ -413,7 +464,9 @@ def parse_assigned_label(line, line_no):
         raise AsmError(line_no, "Invalid label assignment: {}".format(line))
     label = parts[0]
     try:
-        label_value = parse_integer(parts[1])
+        label_value = translate_numeric_expression(
+            parts[1], labels, scope_label, line_no, first_pass, current_addr
+        )
     except ValueError:
         raise AsmError(line_no, "Invalid integer value: {}".format(parts[1]))
 
@@ -498,7 +551,9 @@ def compile_source(lines, verbosity_level, file_name):
                         label = line[:-1]
                         label_value = addr
                     else:
-                        label, label_value = parse_assigned_label(line, line_no)
+                        label, label_value = parse_assigned_label(
+                            line, labels, scope_label, line_no, first_pass, addr
+                        )
                     if " " in label or "@" in label:
                         raise AsmError(line_no, 'Bad label "{}"'.format(label))
                     if is_local_label(label):
@@ -566,23 +621,23 @@ def compile_source(lines, verbosity_level, file_name):
                                 ),
                             )
                         for k in range(1, len(directive)):
-                            addr += val_size
                             try:
-                                value = translate_addr_or_number(
+                                value = translate_numeric_expression(
                                     directive[k],
                                     labels,
                                     scope_label,
                                     line_no,
                                     first_pass,
+                                    addr,
                                 )
                             except ValueError:
                                 raise AsmError(
-                                    line_no,
-                                    "Invalid integer: {}".format(directive[k]),
+                                    line_no, "Invalid integer: {}".format(directive[k])
                                 )
                             # Convert value to unsigned.
                             if value < 0:
                                 value = (1 << num_bits) + value
+                            addr += val_size
                             code += struct.pack(val_type, value)
 
                     elif directive[0] in [".space", ".zero"]:
@@ -600,7 +655,7 @@ def compile_source(lines, verbosity_level, file_name):
                         for k in range(0, size):
                             code += struct.pack("b", 0)
 
-                    elif directive[0] in [".ascii", ".asciz", ".string"]:
+                    elif directive[0] in [".ascii", ".asciz"]:
                         raw_text = line[len(directive[0]) :].strip()
                         first_quote = raw_text.find('"')
                         last_quote = raw_text.rfind('"')
@@ -656,10 +711,6 @@ def compile_source(lines, verbosity_level, file_name):
                             addr += 1
                             str_code += struct.pack("B", 0)
 
-                        if directive[0] == ".string":
-                            addr += 4
-                            str_code = struct.pack("<I", len(str_code)) + str_code
-
                         code += str_code
 
                     elif directive[0] in [".text", ".data", ".global", ".globl"]:
@@ -703,6 +754,7 @@ def compile_source(lines, verbosity_level, file_name):
                                 labels,
                                 scope_label,
                                 first_pass,
+                                addr,
                             )
                             translation_successful = True
                             break

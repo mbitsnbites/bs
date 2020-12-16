@@ -41,7 +41,7 @@ const char p[]="?((((("  // DON'T MODIFY THIS LINE! IT IS REPLACED BY THE BUILD 
 // OP:                                1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
 //                0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 const int nout[]={0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0},
-          ninr[]={0,0,1,1,2,2,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+          ninr[]={0,0,1,1,2,2,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1},
           ninx[]={0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
 
 // Memory.
@@ -67,14 +67,11 @@ void setI(int a,int v){
   m[a+3]=v>>24;
 }
 
-void getS(int a){
-  // Read the string length (32-bit integer).
-  int l=getI(a);
-
+void getS(int a,int l){
   // Extract the string from memory.
   free(s);
   s=malloc(l+1);
-  memcpy(s,&m[a+4],l);
+  memcpy(s,&m[a],l);
   s[l]=0;
 }
 
@@ -307,22 +304,22 @@ int main(int argc, char** argv){
       break;
 
     case 29: // PRINTLN
-      getS(o[0]);
-      WriteDebug("PRINTLN %d (%s)",o[0],s);
+      getS(o[0],o[1]);
+      WriteDebug("PRINTLN %d, %d (%s)",o[0],o[1],s);
       printf("%s\n",s);
       fflush(stdout);
       break;
 
     case 30: // PRINT
-      getS(o[0]);
-      WriteDebug("PRINT %d (%s)",o[0],s);
+      getS(o[0],o[1]);
+      WriteDebug("PRINT %d, %d (%s)",o[0],o[1],s);
       printf("%s",s);
       fflush(stdout);
       break;
 
     case 31: // RUN
-      getS(o[0]);
-      WriteDebug("RUN %d (%s)",o[0],s);
+      getS(o[0],o[1]);
+      WriteDebug("RUN %d, %d (%s)",o[0],o[1],s);
       system(s);
       break;
 

@@ -65,7 +65,7 @@ for %%i in (0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0) do 
     set /A n+=1
 )
 set /A n=0
-for %%i in (0 0 1 1 2 2 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0) do (
+for %%i in (0 0 1 1 2 2 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1) do (
     set ninr[!n!]=%%i
     set /A n+=1
 )
@@ -395,21 +395,21 @@ set /A running=1
         goto :mxl
 
     :I29
-        call :getS "!o[0]!"
-        call :WriteDebug "PRINTLN !o[0]! (%s%)"
+        call :getS "!o[0]!" "!o[1]!"
+        call :WriteDebug "PRINTLN !o[0]! !o[1]! (%s%)"
         echo %s%
         goto :mxl
 
     :I30
-        call :getS "!o[0]!"
-        call :WriteDebug "PRINT !o[0]! (%s%)"
+        call :getS "!o[0]!" "!o[1]!"
+        call :WriteDebug "PRINT !o[0]! !o[1]! (%s%)"
         REM TODO(m): Implement print without a newline.
         echo %s%
         goto :mxl
 
     :I31
-        call :getS "!o[0]!"
-        call :WriteDebug "RUN !o[0]! (%s%)"
+        call :getS "!o[0]!" "!o[1]!"
+        call :WriteDebug "RUN !o[0]! !o[1]! (%s%)"
         %s%
         goto :mxl
 
@@ -426,20 +426,10 @@ REM Helper functions.
   exit /B 0
 
 :getS
-  REM Read the string length (32-bit integer).
-  set a=%~1%
-  set /A b0=!m[%a%]!
-  set /A a=a+1
-  set /A b1=!m[%a%]!
-  set /A a=a+1
-  set /A b2=!m[%a%]!
-  set /A a=a+1
-  set /A b3=!m[%a%]!
-  set /A "l=b0|(b1<<8)|(b2<<16)|(b3<<24)"
-
   REM Extract the string from memory.
+  set a=%~1%
+  set l=%~2%
   set /A a2=a+l
-  set /A a=a+1
   set s=
   :gsl
     set /A c=!m[%a%]!

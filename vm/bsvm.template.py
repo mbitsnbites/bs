@@ -42,7 +42,7 @@ _GT=4
 # OP:                     1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
 #     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 nout=[0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0]
-ninr=[0,0,1,1,2,2,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+ninr=[0,0,1,1,2,2,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1]
 ninx=[0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
 
 # Helper functions.
@@ -55,12 +55,8 @@ def getI(a):
 def setI(a,v):
 	struct.pack_into("<l",m,a,v)
 
-def getS(a):
-	# Read the string length (32-bit integer).
-	l=getI(a)
-
+def getS(a,l):
 	# Extract the string from memory.
-	a+=4
 	return m[a:(a+l)].decode("utf8")
 
 # Create RAM.
@@ -268,20 +264,20 @@ while running:
 		running=False
 
 	elif op == 29: # PRINTLN
-		s=getS(o[0])
-		WriteDebug("PRINTLN {} ({})".format(o[0],s))
+		s=getS(o[0],o[1])
+		WriteDebug("PRINTLN {}, {} ({})".format(o[0],o[1],s))
 		print(s)
 		sys.stdout.flush()
 
 	elif op == 30: # PRINT
-		s=getS(o[0])
-		WriteDebug("PRINT {} ({})".format(o[0],s))
+		s=getS(o[0],o[1])
+		WriteDebug("PRINT {}, {} ({})".format(o[0],o[1],s))
 		print(s,end="")
 		sys.stdout.flush()
 
 	elif op == 31: # RUN
-		s=getS(o[0])
-		WriteDebug("RUN {} ({})".format(o[0],s))
+		s=getS(o[0],o[1])
+		WriteDebug("RUN {}, {} ({})".format(o[0],o[1],s))
 		os.system(s)
 
 	else:

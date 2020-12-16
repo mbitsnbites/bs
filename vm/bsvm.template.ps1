@@ -41,29 +41,27 @@ class VM {
   # OP:                             1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
   #             0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
   [Byte[]]$nout=0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0
-  [Byte[]]$ninr=0,0,1,1,2,2,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+  [Byte[]]$ninr=0,0,1,1,2,2,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1
   [Byte[]]$ninx=0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 
   # Memory.
   [Byte[]]$m
 
-  [Int32]getI([Int32]$addr){
-    return ([Int32]$this.m[$addr]) -bor (([Int32]$this.m[$addr+1]) -shl 8) -bor (([Int32]$this.m[$addr+2]) -shl 16) -bor (([Int32]$this.m[$addr+3]) -shl 24)
+  [Int32]getI([Int32]$a){
+    return ([Int32]$this.m[$a]) -bor (([Int32]$this.m[$a+1]) -shl 8) -bor (([Int32]$this.m[$a+2]) -shl 16) -bor (([Int32]$this.m[$a+3]) -shl 24)
   }
 
-  [void]setI([Int32]$addr,[Int32]$value){
-    $this.m[$addr]=[Byte]($value -band 255)
-    $this.m[$addr+1]=[Byte](($value -shr 8) -band 255)
-    $this.m[$addr+2]=[Byte](($value -shr 16) -band 255)
-    $this.m[$addr+3]=[Byte](($value -shr 24) -band 255)
+  [void]setI([Int32]$a,[Int32]$v){
+    $this.m[$a]=[Byte]($v -band 255)
+    $this.m[$a+1]=[Byte](($v -shr 8) -band 255)
+    $this.m[$a+2]=[Byte](($v -shr 16) -band 255)
+    $this.m[$a+3]=[Byte](($v -shr 24) -band 255)
   }
 
-  [string]getS([Int32]$addr){
-    [Int32]$num_bytes=$this.getI($addr)
-    $first=$addr+4
-    $str_len=[System.Text.Encoding]::UTF8.GetCharCount($this.m,$first,$num_bytes)
-    [char[]]$utf8_chars=New-Object char[] $str_len;
-    [System.Text.Encoding]::UTF8.GetChars($this.m,$first,$num_bytes,$utf8_chars,0);
+  [string]getS([Int32]$a,[Int32]$l){
+    $l2=[System.Text.Encoding]::UTF8.GetCharCount($this.m,$a,$l)
+    [char[]]$utf8_chars=New-Object char[] $l2;
+    [System.Text.Encoding]::UTF8.GetChars($this.m,$a,$l,$utf8_chars,0);
     return -join $utf8_chars
   }
 
@@ -296,20 +294,20 @@ class VM {
         }
 
         29{ # PRINTLN
-          $str=$this.getS($o[0])
-          Write-Debug("PRINTLN {0} ({1})" -f $o[0],$str)
+          $str=$this.getS($o[0],$o[1])
+          Write-Debug("PRINTLN {0} {1} ({2})" -f $o[0],$o[1],$str)
           Write-Host $str
         }
 
         30{ # PRINT
-          $str=$this.getS($o[0])
-          Write-Debug("PRINT {0} ({1})" -f $o[0],$str)
+          $str=$this.getS($o[0],$o[1])
+          Write-Debug("PRINT {0} {1} ({2})" -f $o[0],$o[1],$str)
           Write-Host $str -NoNewline
         }
 
         31{ # RUN
-          $str=$this.getS($o[0])
-          Write-Debug("RUN {0} ({1})" -f $o[0],$str)
+          $str=$this.getS($o[0],$o[1])
+          Write-Debug("RUN {0} {1} ({2})" -f $o[0],$o[1],$str)
           $c=$str.Split(" ")[0]
           $a=$str.Substring($c.Length+1).TrimStart()
           Start-Process -Wait -FilePath $c -ArgumentList $a

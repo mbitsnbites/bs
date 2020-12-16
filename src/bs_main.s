@@ -49,12 +49,14 @@ main:
     mov     r1, #123
     jsr     malloc
 
-    run     #command
+    mov     r50, #command
+    run     r50, #command_size
 
     jsr     print_test
     jsr     loop_test
 
-    println #done_text
+    mov     r50, #done_text
+    println r50, #done_text_size
 
     mov     r1, #0
     rts
@@ -62,12 +64,15 @@ main:
 print_test:
     mov     r1, #mem_start
     mov     r2, #hello_text
-    jsr     strcpy
-    println #mem_start
+    mov     r3, #hello_text_size
+    jsr     memcpy
+    mov     r50, #mem_start
+    println r50, #hello_text_size
     rts
 
 loop_test:
-    print   #loop_start_text
+    mov     r50, #loop_start_text
+    print   r50, #loop_start_text_size
     mov     r128, #20
 1$:
     mov     r129, #1000
@@ -75,29 +80,37 @@ loop_test:
     sub     r129, #1
     cmp     r129, #0
     bne     2$
-    print   #loop_text
+    mov     r50, #loop_text
+    print   r50, #loop_text_size
     sub     r128, #1
     cmp     r128, #0
     bne     1$
-    println #loop_done_text
+    mov     r50, #loop_done_text
+    println r50, #loop_done_text_size
     rts
 
 
 hello_text:
-    .string "Hello world!! 👍"
+    .ascii "Hello world!! 👍"
+    hello_text_size = *-hello_text
 
 done_text:
-    .string "Program finished."
+    .ascii "Program finished."
+    done_text_size = *-done_text
 
 loop_start_text:
-    .string "Looping (1000 loops per .): "
+    .ascii "Looping (1000 loops per .): "
+    loop_start_text_size = *-loop_start_text
 loop_text:
-    .string "."
+    .ascii "."
+    loop_text_size = *-loop_text
 loop_done_text:
-    .string " Done!"
+    .ascii " Done!"
+    loop_done_text_size = *-loop_done_text
 
 command:
-    .string "cmake --version"
+    .ascii "cmake --version"
+    command_size = *-command
 
 ; Test BS program.
 bs_source:

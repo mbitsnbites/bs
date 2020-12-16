@@ -41,26 +41,18 @@ _GE=5 # _GT | _EQ
 # OP:                       1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
 #     (0) 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 nout=($_B 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0)
-ninr=($_B 0 1 1 2 2 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
+ninr=($_B 0 1 1 2 2 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1)
 ninx=($_B 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1)
 
 # Helper functions.
 WriteDebug(){ >&2 echo "DEBUG: $1"; }
 
 getS(){
-  # Read the string length (32-bit integer).
-  a=$1
-  b0=${m[$a]}
-  b1=${m[$((a+1))]}
-  b2=${m[$((a+2))]}
-  b3=${m[$((a+3))]}
-  l=$((b0|(b1<<8)|(b2<<16)|(b3<<24)))
-
   # Extract the string from memory.
-  a=$((a+3))
+  a=$1
   str=""
-  for i in $(seq 1 $l);do
-    c=${m[$((a+i))]}
+  for i in $(seq 1 $2);do
+    c=${m[$((a+i-1))]}
     str+=$(printf "\x$(printf %x $c)")
   done
 }
@@ -331,20 +323,20 @@ while [ $running -eq 1 ];do
       ;;
 
     29) # PRINTLN
-      getS ${o[1]}
-      WriteDebug "PRINTLN ${o[1]} ($str)"
+      getS ${o[1]} ${o[2]}
+      WriteDebug "PRINTLN ${o[1]} ${o[2]} ($str)"
       printf "$str\n"
       ;;
 
     30) # PRINT
-      getS ${o[1]}
-      WriteDebug "PRINT ${o[1]} ($str)"
+      getS ${o[1]} ${o[2]}
+      WriteDebug "PRINT ${o[1]} ${o[2]} ($str)"
       printf "$str"
       ;;
 
     31) # RUN
-      getS ${o[1]}
-      WriteDebug "RUN ${o[1]} ($str)"
+      getS ${o[1]} ${o[2]}
+      WriteDebug "RUN ${o[1]} ${o[2]} ($str)"
       eval "$str"
       ;;
 
