@@ -437,5 +437,5 @@ REM Helper functions.
     for %%i in (10 33 34 37 38 60 62 124) do if %c%==%%i set "d=^!AX%c%^!"
     set "s=!s!!d!"
     set /A a=a+1
-    if %a% leq %a2% goto :gsl
+    if %a% lss %a2% goto :gsl
   exit /B 0
