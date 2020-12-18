@@ -28,34 +28,34 @@
 ;   r1 = Exit status (0 for success)
 ;
 ; Internal register allocation (used by most parsing routines):
-;   r1 = current character
-;   r128 = current character position (memory pointer)
-;   r129 = start of subpart (e.g. keyword)
-;   r130 = length of subpart
-;   r131 = 2nd string to compare with
+;   r128 = current character
+;   r129 = current character position (memory pointer)
+;   r130 = start of subpart (e.g. keyword)
+;   r131 = length of subpart
+;   r132 = 2nd string to compare with
 ;   r150 = current line number
 ;   r151 = start of current line
 ; -------------------------------------------------------------------------------------------------
 
 parse_program:
-    mov     r128, r1
-    ldb     r1, r128, z
+    mov     r129, r1
+    ldb     r128, r129, z
 
     mov     r150, #1        ; Line number = 1
-    mov     r151, r128      ; Start of first line
+    mov     r151, r129      ; Start of first line
 
 parse_next_line:
     ; Find the start of a statement (skip spaces).
 1$:
-    cmp     r1, #32         ; SPACE
+    cmp     r128, #32       ; SPACE
     beq     3$
-    cmp     r1, #9          ; TAB
+    cmp     r128, #9        ; TAB
     beq     3$
-    cmp     r1, #10         ; LF
+    cmp     r128, #10       ; LF
     beq     2$
-    cmp     r1, #13         ; CR
+    cmp     r128, #13       ; CR
     beq     3$
-    cmp     r1, #0          ; End of script
+    cmp     r128, #0        ; End of script
     bne     parse_statement
 
     ; Parse done.
@@ -64,11 +64,11 @@ parse_next_line:
 
 2$:
     add     r150, #1        ; Increment line counter
-    mov     r151, r128
+    mov     r151, r129
     add     r151, #1        ; Start of the next line (accurate for both LF and CRLF line endings)
 3$:
-    add     r128, #1
-    ldb     r1, r128, z
+    add     r129, #1
+    ldb     r128, r129, z
     jmp     1$
 
 
@@ -128,28 +128,28 @@ parse_error_str:
 ; parse_consume_spaces()
 ;
 ; Input:
-;   r1 = current character
-;   r128 = current parse position
+;   r128 = current character
+;   r129 = current parse position
 ;
 ; Output:
-;   r1 = current character
-;   r128 = current parse position
+;   r128 = current character
+;   r129 = current parse position
 ; -------------------------------------------------------------------------------------------------
 
 parse_consume_spaces:
 1$:
-    cmp     r1, #32         ; SPACE
+    cmp     r128, #32       ; SPACE
     beq     2$
-    cmp     r1, #9          ; TAB
+    cmp     r128, #9        ; TAB
     beq     2$
-    cmp     r1, #13         ; CR
+    cmp     r128, #13       ; CR
     beq     2$
-    cmp     r1, #0          ; End of script
+    cmp     r128, #0        ; End of script
     beq     parse_err_premature_end
     rts
 2$:
-    add     r128, #1
-    ldb     r1, r128, z
+    add     r129, #1
+    ldb     r128, r129, z
     jmp     1$
 
 
@@ -157,9 +157,9 @@ parse_consume_spaces:
 ; parse_memcmp()
 ;
 ; Input:
-;   r129 = start of str1
-;   r130 = number of characters (must be > 0)
-;   r131 = start of str2
+;   r130 = start of str1
+;   r131 = number of characters (must be > 0)
+;   r132 = start of str2
 ;
 ; Output:
 ;   cc = status (EQ if equal, otherwise comparison of first diffing byte)
@@ -171,12 +171,12 @@ parse_consume_spaces:
 parse_memcmp:
     mov     r200, #0
 1$:
-    ldb     r201, r129, r200
-    ldb     r202, r131, r200
+    ldb     r201, r130, r200
+    ldb     r202, r132, r200
     cmp     r201, r202
     bne     2$
     add     r200, #1
-    cmp     r200, r130
+    cmp     r200, r131
     bne     1$
 2$:
     rts
@@ -186,12 +186,12 @@ parse_memcmp:
 ; parse_statement()
 ;
 ; Input:
-;   r1 = current character
-;   r128 = current parse position
+;   r128 = current character
+;   r129 = current parse position
 ;
 ; Output:
-;   r1 = current character
-;   r128 = current parse position
+;   r128 = current character
+;   r129 = current parse position
 ; -------------------------------------------------------------------------------------------------
 
 parse_statement:
@@ -199,54 +199,54 @@ parse_statement:
     jsr     parse_name
 
     ; Check for reserved commands ("if", "while", "end", ...)
-    cmp     r130, #2
+    cmp     r131, #2
     blt     4$
     bgt     1$
 
     ; Length = 2
-    mov     r131, #_str_if
+    mov     r132, #_str_if
     jsr     parse_memcmp
     beq     parse_if
 
 1$:
-    cmp     r130, #3
+    cmp     r131, #3
     bgt     2$
 
     ; Length = 3
-    mov     r131, #_str_end
+    mov     r132, #_str_end
     jsr     parse_memcmp
     beq     parse_end
-    mov     r131, #_str_for
+    mov     r132, #_str_for
     jsr     parse_memcmp
     beq     parse_for
 
 2$:
-    cmp     r130, #4
+    cmp     r131, #4
     bgt     3$
 
     ; Length = 4
-    mov     r131, #_str_else
+    mov     r132, #_str_else
     jsr     parse_memcmp
     beq     parse_else
 
 3$:
-    cmp     r130, #4
+    cmp     r131, #4
     bgt     4$
 
     ; Length = 5
-    mov     r131, #_str_elsif
+    mov     r132, #_str_elsif
     jsr     parse_memcmp
     beq     parse_elsif
-    mov     r131, #_str_while
+    mov     r132, #_str_while
     jsr     parse_memcmp
     beq     parse_while
 
     ; Is this an assignment (followed by "=") or a function call (followed by "("))?
 4$:
     jsr     parse_consume_spaces
-    cmp     r1, #61         ; "="
+    cmp     r128, #61       ; "="
     beq     parse_assignment
-    cmp     r1, #40         ; "("
+    cmp     r128, #40       ; "("
     beq     parse_function_call
 
     jmp     parse_err_syntax_error
@@ -260,60 +260,60 @@ parse_statement:
 ; parse_name()
 ;
 ; Input:
-;   r1 = current character
-;   r128 = current parse position
+;   r128 = current character
+;   r129 = current parse position
 ;
 ; Output:
-;   r1 = current character
-;   r128 = current parse position
-;   r129 = start of name
-;   r130 = length of name
+;   r128 = current character
+;   r129 = current parse position
+;   r130 = start of name
+;   r131 = length of name
 ; -------------------------------------------------------------------------------------------------
 
 parse_name:
-    mov     r129, r128      ; r129 = start of name
+    mov     r130, r129      ; r130 = start of name
 
     ; The first char must be in [a-zA-Z_]
-    cmp     r1, #122        ; "z"
+    cmp     r128, #122      ; "z"
     bgt     4$
-    cmp     r1, #97         ; "a"
+    cmp     r128, #97       ; "a"
     bge     1$
-    cmp     r1, #95         ; "_"
+    cmp     r128, #95       ; "_"
     beq     1$
-    cmp     r1, #65         ; "A"
+    cmp     r128, #65       ; "A"
     blt     4$
-    cmp     r1, #90         ; "Z"
+    cmp     r128, #90       ; "Z"
     bgt     4$
 1$:
-    add     r128, #1
-    ldb     r1, r128, z
+    add     r129, #1
+    ldb     r128, r129, z
 
     ; Chars 2.. must be in [a-zA-Z0-9_]
 2$:
-    cmp     r1, #122        ; "z"
+    cmp     r128, #122      ; "z"
     bgt     4$
-    cmp     r1, #97         ; "a"
+    cmp     r128, #97       ; "a"
     bge     3$
-    cmp     r1, #95         ; "_"
+    cmp     r128, #95       ; "_"
     beq     3$
-    cmp     r1, #48         ; "0"
+    cmp     r128, #48       ; "0"
     blt     4$
-    cmp     r1, #57         ; "9"
+    cmp     r128, #57       ; "9"
     ble     3$
-    cmp     r1, #65         ; "A"
+    cmp     r128, #65       ; "A"
     blt     4$
-    cmp     r1, #90         ; "Z"
+    cmp     r128, #90       ; "Z"
     bgt     4$
 3$:
-    add     r128, #1
-    ldb     r1, r128, z
+    add     r129, #1
+    ldb     r128, r129, z
     jmp     2$
 
     ; End of name.
 4$:
-    mov     r130, r128
-    sub     r130, r129      ; r130 = length of name string
-    cmp     r130, #0
+    mov     r131, r129
+    sub     r131, r130      ; r131 = length of name string
+    cmp     r131, #0
     beq     parse_err_invalid_name
     rts
 
