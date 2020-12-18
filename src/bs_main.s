@@ -23,7 +23,7 @@
     .include    lib/crt0.s
     .include    lib/mem.s
     .include    lib/string.s
-    .include    lib/parser.s
+    .include    parser/parser.s
 
 main:
     jsr     mem_init
