@@ -122,7 +122,7 @@ In the instruction list, the following notation is used:
 | 25 | XOR R*m*, X | R*m* ← R*m* ^ X | Bitwise exclusive or |
 | 26 | SHL R*m*, X | R*m* ← R*m* << X | Shift left |
 | 27 | SHR R*m*, X | R*m* ← R*m* >> X | Arithmetic shift right |
-| 28 | EXIT X | exit(X) | Exit program |
-| 29 | PRINTLN X | println(X) | Print string at address X, with new line |
-| 30 | PRINT X | print(X) | Print string at address X |
-| 31 | RUN X | run(X) | Run system command given by string at address X |
+| 28 | EXIT X | exit(X) | Exit program with exit code X |
+| 29 | PRINTLN R*m*, X | println(R*m*, X) | Print string at address R*m* and length X bytes, with new line |
+| 30 | PRINT R*m*, X | print(R*m*, X) | Print string at address R*m* and length X bytes |
+| 31 | RUN R*m*, X | run(R*m*, X) | Run system command given by string at address R*m* and length X bytes |
