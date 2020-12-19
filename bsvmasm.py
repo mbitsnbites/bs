@@ -264,7 +264,7 @@ def mangle_local_label(label, scope_label):
 
 
 def translate_addr_or_number(
-    string, labels, scope_label, line_no, first_pass, current_addr
+    string, labels, scope_label, line_no, first_pass, current_addr, default
 ):
     # Numeric literal?
     try:
@@ -286,12 +286,12 @@ def translate_addr_or_number(
         return labels[string]
     except KeyError:
         if first_pass:
-            return 2147483647  # Something large (worst case)
+            return default
         raise AsmError(line_no, "Bad label: {}".format(string))
 
 
 def translate_numeric_expression(
-    string, labels, scope_label, line_no, first_pass, current_addr
+    string, labels, scope_label, line_no, first_pass, current_addr, default=2147483647
 ):
     # This is a very dodgy arithmetic expression parser... The most important use-cases that we
     # want to support are "*-label" and "a+b+c".
@@ -303,7 +303,7 @@ def translate_numeric_expression(
         for x in subtrahends:
             if x:
                 value = translate_addr_or_number(
-                    x, labels, scope_label, line_no, first_pass, current_addr
+                    x, labels, scope_label, line_no, first_pass, current_addr, default
                 )
             else:
                 value = 0
@@ -613,13 +613,6 @@ def compile_source(lines, verbosity_level, file_name):
                             val_type = "<L"
 
                         val_size = num_bits >> 3
-                        if not addr & (val_size - 1) == 0:
-                            raise AsmError(
-                                line_no,
-                                "Data not aligned to a {} byte boundary".format(
-                                    val_size
-                                ),
-                            )
                         for k in range(1, len(directive)):
                             try:
                                 value = translate_numeric_expression(
@@ -646,7 +639,15 @@ def compile_source(lines, verbosity_level, file_name):
                                 line_no, "Invalid usage of {}".format(directive[0])
                             )
                         try:
-                            size = parse_integer(directive[1])
+                            size = translate_numeric_expression(
+                                directive[1],
+                                labels,
+                                scope_label,
+                                line_no,
+                                first_pass,
+                                addr,
+                                default=1,
+                            )
                         except ValueError:
                             raise AsmError(
                                 line_no, "Invalid size: {}".format(directive[1])

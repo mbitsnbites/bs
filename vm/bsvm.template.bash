@@ -47,6 +47,16 @@ ninx=($_B 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1)
 # Helper functions.
 WriteDebug(){ >&2 echo "DEBUG: $1"; }
 
+getI(){
+  a=$1
+  b0=${m[$a]}
+  b1=${m[$((a+1))]}
+  b2=${m[$((a+2))]}
+  b3=${m[$((a+3))]}
+  v=$((b0|(b1<<8)|(b2<<16)|(b3<<24)))
+  [ $v -gt 2147483647 ] && v=$((v-4294967296))  # Required on 64-bit systems
+}
+
 getS(){
   # Extract the string from memory.
   a=$1
@@ -117,11 +127,7 @@ while [ $running -eq 1 ];do
   if [ ${ninx[$op]} = 1 ];then
     if [ $at = 3 ];then
       # 32-bit immediate.
-      b0=${m[$pc]}
-      b1=${m[$((pc+1))]}
-      b2=${m[$((pc+2))]}
-      b3=${m[$((pc+3))]}
-      v=$((b0|(b1<<8)|(b2<<16)|(b3<<24)))
+      getI $pc
       pc=$((pc+4))
     else
       # Arg types 0-2 use a single byte.
@@ -156,12 +162,8 @@ while [ $running -eq 1 ];do
 
     3) # LDW
       WriteDebug "LDW R${o[1]}, ${o[2]}, ${o[3]}"
-      a=$((${o[2]}+${o[3]}))
-      b0=${m[$a]}
-      b1=${m[$((a+1))]}
-      b2=${m[$((a+2))]}
-      b3=${m[$((a+3))]}
-      r[${o[1]}]=$((b0|(b1<<8)|(b2<<16)|(b3<<24)))
+      getI $((${o[2]}+${o[3]}))
+      r[${o[1]}]=$v
       ;;
 
     4) # STB
@@ -197,12 +199,8 @@ while [ $running -eq 1 ];do
 
     8) # RTS
       WriteDebug "RTS"
-      a=${r[255]}
-      b0=${m[$a]}
-      b1=${m[$((a+1))]}
-      b2=${m[$((a+2))]}
-      b3=${m[$((a+3))]}
-      pc=$((b0|(b1<<8)|(b2<<16)|(b3<<24)))
+      getI ${r[255]}
+      pc=$v
       r[255]=$((${r[255]}+4)) # Post-increment SP
       ;;
 
@@ -257,12 +255,8 @@ while [ $running -eq 1 ];do
 
     17) # POP
       WriteDebug "POP R${o[1]}"
-      a=${r[255]}
-      b0=${m[$a]}
-      b1=${m[$((a+1))]}
-      b2=${m[$((a+2))]}
-      b3=${m[$((a+3))]}
-      r[${o[1]}]=$((b0|(b1<<8)|(b2<<16)|(b3<<24)))
+      getI ${r[255]}
+      r[${o[1]}]=$v
       r[255]=$((${r[255]}+4)) # Post-increment SP
       ;;
 
@@ -273,7 +267,7 @@ while [ $running -eq 1 ];do
 
     19) # SUB
       WriteDebug "SUB R${o[1]}, ${o[2]}"
-      r[${o[1]}]=$((${r[${o[1]}]}-${o[2]}))
+      r[${o[1]}]=$((${r[${o[1]}]}- ${o[2]}))  # zsh requires the extra space for negative $o[2]
       ;;
 
     20) # MUL
@@ -325,13 +319,13 @@ while [ $running -eq 1 ];do
     29) # PRINTLN
       getS ${o[1]} ${o[2]}
       WriteDebug "PRINTLN ${o[1]} ${o[2]} ($str)"
-      printf "$str\n"
+      printf '%s\n' "$str"
       ;;
 
     30) # PRINT
       getS ${o[1]} ${o[2]}
       WriteDebug "PRINT ${o[1]} ${o[2]} ($str)"
-      printf "$str"
+      printf '%s' "$str"
       ;;
 
     31) # RUN

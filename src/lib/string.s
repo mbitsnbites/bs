@@ -57,12 +57,63 @@ memcpy:
 
 
 ; -------------------------------------------------------------------------------------------------
-; void strcpy(string* dst, const string* src)
-; Copy a string.
+; int2str() - Convert an integer number to a string.
+;
+; Input:
+;   r1 = integer number
+;
+; Output:
+;   r1 = pointer to string start
+;   r2 = size of string (number of bytes)
 ; -------------------------------------------------------------------------------------------------
 
-strcpy:
-    ldw     r3, r2, #0
-    add     r3, #4              ; num_bytes = strlen + 4
-    jmp     memcpy
+int2str_max_str_len = 11    ; -2^31 => "-2147483648"
+
+int2str:
+    mov     r2, #4$
+    mov     r3, #int2str_max_str_len
+
+    ; Handle negative numbers.
+    mov     r5, r1
+    cmp     r5, #0
+    bge     1$
+    cmp     r5, #-2147483648 ; Special case (we can't negate -2147483648)
+    beq     3$
+    mov     r1, #0
+    sub     r1, r5
+
+1$:
+    mov     r4, r1
+    mod     r4, #10
+    add     r4, #48         ; Convert decimal number to ASCII
+    sub     r3, #1
+    stb     r4, r2, r3
+    div     r1, #10
+    cmp     r1, #0
+    bne     1$
+
+    ; Inject a negative sign if necessary.
+    cmp     r5, #0
+    bge     2$
+    sub     r3, #1
+    mov     r4, #45         ; "-"
+    stb     r4, r2, r3
+
+2$:
+    mov     r1, r2
+    add     r1, r3          ; r1 = start of string
+    mov     r2, #int2str_max_str_len
+    sub     r2, r3          ; r2 = length of string
+    rts
+
+3$:
+    mov     r1, #5$
+    mov     r2, #int2str_max_str_len
+    rts
+
+4$:
+    .space int2str_max_str_len
+
+5$:
+    .ascii "-2147483648"
 

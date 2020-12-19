@@ -23,7 +23,9 @@
     .include    lib/crt0.s
     .include    lib/mem.s
     .include    lib/string.s
+    .include    parser/object.s
     .include    parser/parser.s
+    .include    parser/value.s
 
 main:
     jsr     mem_init
@@ -114,7 +116,7 @@ command:
 
 ; Test BS program.
 bs_source:
-    .asciz  "foo = 123\nif foo > 7\n  apa = \"Hello world!\"\n  println(apa)\nend"
+    .asciz  "# A commnet\nfoo = 123\nif foo > 7\n  apa = \"Hello world!\"\n  println(apa)\nend"
 
 ; -------------------------------------------------------------------------------------------------
 ; The end of the program is the start of the working memory.
