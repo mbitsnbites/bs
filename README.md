@@ -1,3 +1,5 @@
+## ⚠️ This repository has moved to: https://gitlab.com/mbitsnbites/bs
+
 # BS ![BS](media/bull.png)
 
 Stay tuned... This may become something awesome, time permitting.
